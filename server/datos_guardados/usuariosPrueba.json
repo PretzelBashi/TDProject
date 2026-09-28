@@ -1,0 +1,16 @@
+{
+    "usuarios": [
+        {
+            "nombre": "Z",
+            "contrasena": "123"
+        },
+        {
+            "nombre": "Front",
+            "contrasena": "123"
+        },
+        {
+            "nombre": "Jugador2",
+            "contrasena": "123"
+        }
+    ]
+}

@@ -1,0 +1,82 @@
+const PlantillaStats = () => {
+
+    return {
+        nivel:1,
+        experiencia: 0,
+        monedas: 100,
+        monedasRenacimiento: 0,
+        posicionActual: 0,
+        ultimaPosicion: 0,
+        jugadoresEnRango: {},
+
+        saludMaxima: 100,
+        saludActual: 100,
+        manaMaxima: 50,
+        manaActual: 50,
+
+        // Estadísticas base
+        danoFisicoBase: 10,
+        danoMagicoBase: 10,
+        armaduraFisicaBase: 5,
+        armaduraMagicaBase: 5,
+        penetracionFisicaBase: 5,
+        penetracionMagicaBase: 5,
+        aceleracionCasteoBase: 5,
+        roboVidaBase: 0,
+        probabilidadCriticoBase: 5,
+        velocidadBase: 5,
+        suerteBase: 1,
+
+        danoFisicoActual: 10,
+        danoMagicoActual: 10,
+        armaduraFisicaActual: 5,
+        armaduraMagicaActual: 5,
+        penetracionFisicaActual: 5,
+        penetracionMagicaActual: 5,
+        aceleracionCasteoActual: 5,
+        roboVidaActual: 0,
+        probabilidadCriticoActual: 5,
+        velocidadActual: 5,
+        suerteActual: 1,
+
+        //Habilidades de vida mayores
+        nivelAgriculturaActual: 0,
+        nivelAlquimiaActual: 0,
+        nivelCocinaActual: 0,
+        nivelSastreriaActual: 0,
+        nivelHerreroActual: 0,
+        nivelEscritorActual: 0,
+
+        nivelAgriculturaMaximo: 0,
+        nivelAlquimiaMaximo: 0,
+        nivelCocinaMaximo: 0,
+        nivelSastreriaMaximo: 0,
+        nivelHerreroMaximo: 0,
+        nivelEscritorMaximo: 0,
+
+        //Habilidades de vida menores
+        nivelCazaActual: 0,
+        nivelPescaActual: 0,
+        nivelMineriaActual: 0,
+        nivelForrajeadorActual: 0,
+
+        nivelCazaMaximo: 0,
+        nivelPescaMaximo: 0,
+        nivelMineriaMaximo: 0,
+        nivelForrajeadorMaximo: 0,
+
+        extras: [], //Esto es para stacks o efectos de armas unicos. Suelen ser permanentes o encargarse de activar efectos, incluye encantamientos
+        //temporales nombre:[potencia, extra, extra], furia:[potencia, extra, extra]
+
+        efectos: {}, // Nombre : [duracion, potencia, extra], veneno:[3,2,0]} **Hacer ticks de dano
+
+        // Información del jugador
+
+        idSocket: "EmptySocket",
+        nombreJugador: "Front",
+        claseJugador: "Error",
+
+    };
+};
+
+module.exports = PlantillaStats;
