@@ -67,6 +67,7 @@ servidorSocket.on("connection", (socket) => {
         usuariosConectados[usuario] = socket.id
         jugadoresConectados[socket.id].stats.nombreJugador = usuario
 
+
         console.log("DEBUG " + usuariosConectados[usuario])
         console.log("DEBUG " + jugadoresConectados[socket.id].stats.nombreJugador)
         
@@ -76,28 +77,38 @@ servidorSocket.on("connection", (socket) => {
 
 });
 
-function ActualizarUsuariosClientes(usuarioIgnorado) {
-    let listaActualizada = []
-    for (const id in jugadores) { //Perdon por usar un foreach, pero estos no tienen indice
-        if (id == usuarioIgnorado) { continue }
+setInterval(() => {
+    for(const servidor in servidores){
+        let listaJugadoresMandar = []
 
+        for (const id in usuariosConectados){
+            let usuario = {
+                    posicionActual: jugadoresConectados[id].stats.posicionActual,
+                    saludMaxima: jugadoresConectados[id].stats.saludMaxima,
+                    saludActual: jugadoresConectados[id].stats.saludActual,
+                    nivel: jugadoresConectados[id].stats.nivel,
+            }
+            listaJugadoresMandar.push(usuario)
+        }
+        servidorSocket.to(servidor).emit(listaJugadoresMandar)
     }
-}
+}, 70);
 
 function LoginExitosoAsignarEventosJugador(socket) {
     socket.on("conectarJugadorAInstancia", (servidor) => {
         if (servidores[servidor]) {
             console.log("Servidor aceptado")
             if (Object.keys(servidores[servidor]).length <= 30) {
-                servidores[servidor][socket.id] = jugadoresConectados[socket.id]
+                servidores[servidor][socket.id] = usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]
                 socket.join(servidor)
+                jugadoresConectados[socket.id].stats.servidorActual = servidor
                 socket.emit("conexionAInstanciaExitosa", true)
                 console.log("Cantidad de jugadores aceptada")
             }
         } else { socket.emit("conexionAInstanciaExitosa", false) }
     })
 
-    socket.on("cargarJugadores", (x) => {
+    socket.on("SolicitarJugadoresConectados", (jugadorIgnorar) => {
 
     })
 

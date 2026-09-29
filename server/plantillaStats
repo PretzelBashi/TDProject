@@ -4,9 +4,9 @@ const PlantillaStats = () => {
         nivel:1,
         experiencia: 0,
         monedas: 100,
-        monedasRenacimiento: 0,
-        posicionActual: 0,
-        ultimaPosicion: 0,
+        monedasRenacimiento: 0,     
+        posicionActual: {x: 0, y:0, z:0},
+        ultimaPosicion: {x: 0, y:0, z:0},
         jugadoresEnRango: {},
 
         saludMaxima: 100,
@@ -71,8 +71,9 @@ const PlantillaStats = () => {
         efectos: {}, // Nombre : [duracion, potencia, extra], veneno:[3,2,0]} **Hacer ticks de dano
 
         // Información del jugador
-
+        jugadoresEnRango: [],
         idSocket: "EmptySocket",
+        servidorActual: "N/a",
         nombreJugador: "Front",
         claseJugador: "Error",
 
