@@ -2,36 +2,46 @@ using SocketIOClient;
 using SocketIOClient.Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Timers;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using static SocketIOUnity;
 
 // Attach this to a persistent object (e.g. an empty GameObject marked
 // DontDestroyOnLoad) so the connection survives scene loads.
-public class TemporarioTemp
+
+public class Vector3Placeholder
 {
-    string nombre;
-    Vector3 posicion;
+    public float x, y, z;
 }
 public class Temporario
 {
-    string nombre;
-    string idSocket;
-    GameObject objetoJugador;
-    Vector3 posicion;
-
-    public Temporario(string nombre, string idSocket,GameObject objetoJugador, Vector3 posicion)
+    public string nombreJugador;
+    public Vector3Placeholder PlaceholderPosicion;
+    public Vector3 posicion;
+    public float saludMaxima;
+    public float saludActual;
+    public int nivel;
+    public string clase;
+    public GameObject objetoJugador;
+    
+    public Temporario(string nombre, int nivel, int saludMaxima, int saludActual, string clase,GameObject objetoJugador, Vector3Placeholder posicion)
     {
-        this.nombre = nombre;
-        this.idSocket = idSocket;
+        this.nombreJugador = nombre;
         this.objetoJugador = objetoJugador;
-        this.posicion = posicion;
+        this.PlaceholderPosicion = posicion;
+        this.nivel = nivel;
+        this.saludMaxima = saludMaxima;
+        this.saludActual = saludActual;
+        this.clase = clase;
     }
 }
+
+
 public class NetworkManager : MonoBehaviour
 {
     UIDebugManager uiManager;
+    Temporario jugadorActual;
+    List<Temporario> jugadoresCargados;
+    ControladorJugadores controladorJugadores;
 
     [SerializeField] private string serverUrl = "http://localhost:3000";
     private SocketIOUnity socket;
@@ -40,8 +50,14 @@ public class NetworkManager : MonoBehaviour
     private void Start()
     {
         uiManager = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>();
+        jugadoresCargados = new List<Temporario>();
         DontDestroyOnLoad(uiManager);
         DontDestroyOnLoad(gameObject);
+    }
+
+    public Vector3 ConvertirAVector3(Vector3Placeholder posicion)
+    {
+        return (new Vector3(posicion.x, posicion.y, posicion.z));
     }
 
     public void ConectarASocket(string username, string contrasena)
@@ -94,6 +110,7 @@ public class NetworkManager : MonoBehaviour
             {
                 socket.Emit("conectarJugadorAInstancia", "servidor1mundo1");
                 uiManager.ActualizarErrores(respuesta.GetValue<string>(1));
+                jugadorActual = respuesta.GetValue<Temporario>(2);
             }
             else
             {
@@ -119,13 +136,45 @@ public class NetworkManager : MonoBehaviour
             }
         });
 
-        socket.On("movimientoJugadores", response =>
+        socket.On("recibirJugadoresConectados", response =>
         {
-            var data = response.GetValue<PlayerMoveData>();
-            Debug.Log($"Player {data.id} moved to {data.x}, {data.y}, {data.z}");
-            // e.g. FindRemotePlayer(data.id)?.SetTargetPosition(...)
+            Debug.Log("Jugadores Recibidos");
+            if (response.GetValue<List<Temporario>>() != null)  
+            {
+                Debug.Log(response.GetValue<List<Temporario>>().Count);
+                jugadoresCargados.Clear();
+
+                jugadoresCargados.AddRange(
+                    response.GetValue<List<Temporario>>()
+                );
+
+                for (int i = 0; i < jugadoresCargados.Count; i++)
+                {
+                    jugadoresCargados[i].posicion = ConvertirAVector3(jugadoresCargados[i].PlaceholderPosicion);
+                }
+                controladorJugadores.PrenderApagar(true);
+            }
+            Debug.Log(jugadoresCargados[0].nombreJugador);
         });
 
+        socket.On("solicitarJugadoresEnRango", response =>
+        {
+            if (response.GetValue< List<Temporario>>() != null)
+            {
+                jugadoresCargados.Clear();
+
+                jugadoresCargados.AddRange(
+                    response.GetValue<List<Temporario>>()
+                );
+
+                for (int i = 0; i < jugadoresCargados.Count; i++)
+                {
+                    jugadoresCargados[i].posicion = ConvertirAVector3(jugadoresCargados[i].PlaceholderPosicion);
+                }
+                controladorJugadores.PrenderApagar(true);
+            }
+            Debug.Log(jugadoresCargados[0].nombreJugador);
+        });
         socket.On("playerJoined", response =>
         {
             var data = response.GetValue<PlayerMoveData>();
@@ -144,6 +193,13 @@ public class NetworkManager : MonoBehaviour
             Debug.Log($"[{data.id}] {data.message}");
         });
     }
+
+    public void SolicitarJugadoresConectados()
+    {
+        controladorJugadores = GameObject.FindGameObjectWithTag("ControladorJugadores").GetComponent<ControladorJugadores>();
+        Debug.Log("Jugadores solicitados");
+        socket.Emit("solicitarJugadoresConectados");
+    }
     public void SendChat(string message)
     {
         socket.Emit("chat", message);
@@ -154,6 +210,7 @@ public class NetworkManager : MonoBehaviour
         socket?.Disconnect();
         socket?.Dispose();
     }
+
 
     [Serializable]
     private class PlayerMoveData

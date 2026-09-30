@@ -10,6 +10,7 @@ TagManager:
   - Temporario
   - Jugador
   - UIDebug
+  - ControladorJugadores
   layers:
   - Default
   - TransparentFX
