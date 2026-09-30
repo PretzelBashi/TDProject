@@ -1,12 +1,12 @@
 const PlantillaStats = () => {
 
     return {
-        nivel:1,
+        nivel: 1,
         experiencia: 0,
         monedas: 100,
-        monedasRenacimiento: 0,     
-        posicionActual: {x: 0, y:0, z:0},
-        ultimaPosicion: {x: 0, y:0, z:0},
+        monedasRenacimiento: 0,
+        posicionActual: { x: 0, y: 0, z: 0 },
+        ultimaPosicion: { x: 0, y: 0, z: 0 },
         jugadoresEnRango: {},
 
         saludMaxima: 100,
@@ -19,9 +19,11 @@ const PlantillaStats = () => {
         danoMagicoBase: 10,
         armaduraFisicaBase: 5,
         armaduraMagicaBase: 5,
+        armaduraCriticosBase: 0,
         penetracionFisicaBase: 5,
         penetracionMagicaBase: 5,
         aceleracionCasteoBase: 5,
+        velocidadDeAtaqueBase: 0.5,
         roboVidaBase: 0,
         probabilidadCriticoBase: 5,
         velocidadBase: 5,
@@ -31,9 +33,11 @@ const PlantillaStats = () => {
         danoMagicoActual: 10,
         armaduraFisicaActual: 5,
         armaduraMagicaActual: 5,
+        armaduraCriticosActual: 0,
         penetracionFisicaActual: 5,
         penetracionMagicaActual: 5,
         aceleracionCasteoActual: 5,
+        velocidadDeAtaqueActual: 0.5,
         roboVidaActual: 0,
         probabilidadCriticoActual: 5,
         velocidadActual: 5,
@@ -65,10 +69,14 @@ const PlantillaStats = () => {
         nivelMineriaMaximo: 0,
         nivelForrajeadorMaximo: 0,
 
-        extras: [], //Esto es para stacks o efectos de armas unicos. Suelen ser permanentes o encargarse de activar efectos, incluye encantamientos
+        habilidades: { basico: [0, 1] }, //espadaBasico: [cooldownBase, nivel]
+        //Que el temporizador siempre empiece en 0 al entrar a la partida. 
+        enfriamiento: {},
+
+        extras: {}, //Esto es para stacks o efectos de armas unicos. Suelen ser permanentes o encargarse de activar efectos, incluye encantamientos
         //temporales nombre:[potencia, extra, extra], furia:[potencia, extra, extra]
 
-        efectos: {}, // Nombre : [duracion, potencia, extra], veneno:[3,2,0]} **Hacer ticks de dano
+        efectos: {}, // Nombre : [temporizador, potencia, extra], veneno:[5,2,0]} **Hacer ticks de dano
 
         // Información del jugador
         jugadoresEnRango: [],

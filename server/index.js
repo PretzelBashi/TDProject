@@ -2,6 +2,7 @@ const { Server } = require("socket.io")
 const express = require("express")
 const mysql = require("mysql")
 const fs = require("fs")
+const utilidades = require("./utilidades")
 const CrearStats = require("./plantillaStats")
 
 const app = express()
@@ -93,24 +94,76 @@ servidorSocket.on("connection", (socket) => {
 setInterval(() => {
     for (const servidor in servidores) {
         try {
-            let listaJugadoresMandar = []
+            let listaJugadoresMandar = {}
 
-            for (const id in jugadoresConectados ) {
+            for (const id in jugadoresConectados) {
 
                 let usuario = {
-                    nombreJugador: jugadoresConectados[id].stats.nombreJugador,
-                    posicionActual: jugadoresConectados[id].stats.posicionActual,
-                    saludMaxima: jugadoresConectados[id].stats.saludMaxima,
-                    saludActual: jugadoresConectados[id].stats.saludActual,
+                    PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
                 }
-                listaJugadoresMandar.push(usuario)
+                listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
             }
-            servidorSocket.to(servidor).emit("recibirJugadoresEnRango", listaJugadoresMandar)
+            servidorSocket.to(servidor).emit("recibirPosicionesJugadores", listaJugadoresMandar)
         } catch { }
     }
 }, 70);
 
+
+
+function ConseguirVida(id) {
+    usuario = {
+        saludMaxima: jugadoresConectados[id].stats.saludMaxima,
+        saludActual: jugadoresConectados[id].stats.saludActual,
+    }
+}
+
+function ConseguirNivel(id) {
+    usuario = {
+        nivel: jugadoresConectados[id].stats.nivel,
+    }
+}
+
 function LoginExitosoAsignarEventosJugador(socket) {
+    //PROBAR HABILIDADES
+    socket.on("IntentarHabilidad", (habilidad) => {
+        statsJugador = jugadoresConectados[socket.id].stats
+        let valorNumericoNecesario = 1
+        let lanzada = false
+        let cooldown = 0
+
+        if (statsJugador.habilidades[habilidad][0] > 0) {
+            socket.emit("LanzarHabilidad", false, "", 0, 0)
+            return
+        }
+
+        switch (habilidad) {
+            case "basico":
+                switch (statsJugador.stats.clase) {
+                    case "espadachin":
+                        cooldown = statsJugador.velocidadDeAtaqueActual * 5
+                        statsJugador.habilidades[habilidad][0] = cooldown
+                        valorNumericoNecesario = statsJugador.danoFisicoActual * (1 + (0.3 * statsJugador.habilidades[habilidad][1]))
+                        break
+                }
+                break
+            case "espadaLarga1":
+                cooldown = (20) / 1 + (statsJugador.aceleracionCasteoActual / 100)
+                statsJugador.habilidades[habilidad][0] = cooldown
+
+                valorNumericoNecesario = statsJugador.danoFisicoActual *
+                    (1 + (0.6 * statsJugador.habilidades[habilidad][1]))
+                break
+        }
+
+        setTimeout(() => {
+            statsJugador.habilidades[habilidad][0] = 0
+        }, statsJugador.habilidades[habilidad][0] * 1000)
+
+        cooldown = Math.floor(cooldown * 100) / 100;
+        socket.emit("LanzarHabilidad", lanzada, habilidad, cooldown,
+            utilidades.CalcularCritico(valorNumericoNecesario, statsJugador.probabilidadCriticoActual))
+    })
+
     socket.on("conectarJugadorAInstancia", (servidor) => {
         if (servidores[servidor]) {
             console.log("Servidor aceptado")
@@ -144,7 +197,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
                 }
             }
         }
-        
+
         socket.emit("recibirJugadoresConectados", listaJugadoresMandar)
     })
 
