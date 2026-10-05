@@ -41,6 +41,7 @@ servidorSocket.on("connection", (socket) => {
 
         if (jugadoresConectados[socket.id]) {
             console.log("Jugador desconectado: " + jugadoresConectados[socket.id].stats.nombreJugador + " Id: " + socket.id)
+            delete servidores[jugadoresConectados[socket.id].stats.servidorActual][socket.id]
             delete usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]
             delete jugadoresConectados[socket.id]
         }
@@ -93,7 +94,7 @@ servidorSocket.on("connection", (socket) => {
 
 //Actualizar jugadores en rango
 setInterval(() => {
-        for (const servidor in servidores) {
+    for (const servidor in servidores) {
         try {
             let listaJugadoresMandar = {}
 
