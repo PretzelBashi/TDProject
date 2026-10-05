@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using static CargadorElementos;
 
 
 //Los saltos tienem que ser una stat
@@ -39,6 +40,7 @@ public class Jugador : MonoBehaviour
         estatusAnimacionCuerpo = 0;
         grounded = false;
         saltos = 1;
+        CargarElementosC.JugadorCargado = true;
     }
 
     void Update()

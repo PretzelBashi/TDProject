@@ -38,9 +38,11 @@ public class Temporario
 
 public class NetworkManager : MonoBehaviour
 {
-    UIDebugManager uiManager;
+    UIDebugManager uiDebug;
+    UIManager uiManager;
     Temporario jugadorActual;
-    List<Temporario> jugadoresCargados;
+    public Dictionary<string, Temporario> jugadoresEnServidor;
+
     ControladorJugadores controladorJugadores;
 
     [SerializeField] private string serverUrl = "http://localhost:3000";
@@ -49,9 +51,10 @@ public class NetworkManager : MonoBehaviour
 
     private void Start()
     {
-        uiManager = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>();
-        jugadoresCargados = new List<Temporario>();
-        DontDestroyOnLoad(uiManager);
+        uiDebug = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>();
+        
+        jugadoresEnServidor = new Dictionary<string,Temporario>();
+        DontDestroyOnLoad(uiDebug);
         DontDestroyOnLoad(gameObject);
     }
 
@@ -100,7 +103,7 @@ public class NetworkManager : MonoBehaviour
         socket.OnDisconnected += (sender, e) =>
         {
             Debug.Log("Disconnected: " + e);
-            uiManager.ActualizarErrores("DESCONECTADO");
+            uiDebug.ActualizarErrores("DESCONECTADO");
         };
 
         socket.On("loginExitoso", respuesta =>
@@ -109,13 +112,13 @@ public class NetworkManager : MonoBehaviour
             if (respuesta.GetValue<bool>(0))
             {
                 socket.Emit("conectarJugadorAInstancia", "servidor1mundo1");
-                uiManager.ActualizarErrores(respuesta.GetValue<string>(1));
+                uiDebug.ActualizarErrores(respuesta.GetValue<string>(1));
                 jugadorActual = respuesta.GetValue<Temporario>(2);
             }
             else
             {
                 Debug.Log(respuesta.GetValue<string>(1));
-                uiManager.ActualizarErrores(respuesta.GetValue<string>(1));
+                uiDebug.ActualizarErrores(respuesta.GetValue<string>(1));
             }
         });
 
@@ -132,7 +135,7 @@ public class NetworkManager : MonoBehaviour
                 });
             } else
             {
-                uiManager.ActualizarErrores("El servidor no existe");
+                uiDebug.ActualizarErrores("El servidor no existe");
             }
         });
 
@@ -142,38 +145,28 @@ public class NetworkManager : MonoBehaviour
             if (response.GetValue<List<Temporario>>() != null)  
             {
                 Debug.Log(response.GetValue<List<Temporario>>().Count);
-                jugadoresCargados.Clear();
+                jugadoresEnServidor.Clear();
 
-                jugadoresCargados.AddRange(
-                    response.GetValue<List<Temporario>>()
-                );
+                List<Temporario> listaJugadoresRecibida = response.GetValue<List<Temporario>>();
 
-                for (int i = 0; i < jugadoresCargados.Count; i++)
+                for (int i = 0; i < listaJugadoresRecibida.Count; i++)
                 {
-                    jugadoresCargados[i].posicion = ConvertirAVector3(jugadoresCargados[i].PlaceholderPosicion);
+                    listaJugadoresRecibida[i].posicion = ConvertirAVector3(listaJugadoresRecibida[i].PlaceholderPosicion);
+                    jugadoresEnServidor.Add(listaJugadoresRecibida[i].nombreJugador, listaJugadoresRecibida[i]);
+                    Debug.Log("Jugador cargado: " + jugadoresEnServidor[listaJugadoresRecibida[i].nombreJugador].nombreJugador);
                 }
                 controladorJugadores.PrenderApagar(true);
+                UnityThread.executeInUpdate(() =>
+                {
+                    uiManager.CargarPlacas();
+                });
+                
             }
-            Debug.Log(jugadoresCargados[0].nombreJugador);
         });
 
         socket.On("solicitarJugadoresEnRango", response =>
         {
-            if (response.GetValue< List<Temporario>>() != null)
-            {
-                jugadoresCargados.Clear();
 
-                jugadoresCargados.AddRange(
-                    response.GetValue<List<Temporario>>()
-                );
-
-                for (int i = 0; i < jugadoresCargados.Count; i++)
-                {
-                    jugadoresCargados[i].posicion = ConvertirAVector3(jugadoresCargados[i].PlaceholderPosicion);
-                }
-                controladorJugadores.PrenderApagar(true);
-            }
-            Debug.Log(jugadoresCargados[0].nombreJugador);
         });
         socket.On("playerJoined", response =>
         {
@@ -197,6 +190,7 @@ public class NetworkManager : MonoBehaviour
     public void SolicitarJugadoresConectados()
     {
         controladorJugadores = GameObject.FindGameObjectWithTag("ControladorJugadores").GetComponent<ControladorJugadores>();
+        uiManager = GameObject.FindGameObjectWithTag("UIJugador").GetComponent<UIManager>();
         Debug.Log("Jugadores solicitados");
         socket.Emit("solicitarJugadoresConectados");
     }

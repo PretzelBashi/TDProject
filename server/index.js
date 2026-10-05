@@ -91,6 +91,25 @@ servidorSocket.on("connection", (socket) => {
 
 });
 
+//Actualizar jugadores en rango
+setInterval(() => {
+        for (const servidor in servidores) {
+        try {
+            let listaJugadoresMandar = {}
+
+            for (const id in jugadoresConectados) {
+
+                let usuario = {
+                    PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
+                }
+                listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
+            }
+            servidorSocket.to(servidor).emit("recibirPosicionesJugadores", listaJugadoresMandar)
+        } catch { }
+    }
+}, 2000)
+
+//Enviar posiciones de jugadores
 setInterval(() => {
     for (const servidor in servidores) {
         try {
@@ -184,7 +203,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
             if (servidores[jugadoresConectados[socket.id].stats.servidorActual]) {
                 for (const id in servidores[jugadoresConectados[socket.id].stats.servidorActual]) {
                     console.log(id)
-                    if (id == socket.id) { continue }
+                    //if (id == socket.id) { continue }
                     let usuario = {
                         nombreJugador: jugadoresConectados[id].stats.nombreJugador,
                         PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
