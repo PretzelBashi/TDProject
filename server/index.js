@@ -105,7 +105,7 @@ setInterval(() => {
                 }
                 listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
             }
-            servidorSocket.to(servidor).emit("recibirPosicionesJugadores", listaJugadoresMandar)
+            servidorSocket.to(servidor).emit(".", listaJugadoresMandar)
         } catch { }
     }
 }, 2000)
@@ -119,7 +119,9 @@ setInterval(() => {
             for (const id in jugadoresConectados) {
 
                 let usuario = {
+                    nombreJugador: jugadoresConectados[id].stats.nombreJugador,
                     PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
+                    animacionActual: jugadoresConectados[id].stats.animacionActual
                 }
                 listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
             }
@@ -212,6 +214,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
                         saludActual: jugadoresConectados[id].stats.saludActual,
                         nivel: jugadoresConectados[id].stats.nivel,
                         clase: jugadoresConectados[id].stats.claseJugador,
+                        animacionActual: jugadoresConectados[id].animacionActual
                     }
                     listaJugadoresMandar.push(usuario)
                 }
@@ -219,6 +222,11 @@ function LoginExitosoAsignarEventosJugador(socket) {
         }
 
         socket.emit("recibirJugadoresConectados", listaJugadoresMandar)
+    })
+
+    socket.on("mandarCoordenadasJugador", (posicion, animacion) => {
+        jugadoresConectados[socket.id].stats.posicionActual = posicion
+        jugadoresConectados[socket.id].stats.animacionActual = animacion
     })
 
     socket.on("chat", (data) => {

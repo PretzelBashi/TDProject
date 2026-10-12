@@ -25,7 +25,10 @@ public class ControladorJugadores : MonoBehaviour
 
         }*/
     }
+    public void CrearJugadorFisico(string usuario)
+    {
 
+    }
     public void PrenderApagar(bool opcion)
     {
         corriendo=opcion;

@@ -8,6 +8,7 @@ const PlantillaStats = () => {
         posicionActual: { x: 0, y: 0, z: 0 },
         ultimaPosicion: { x: 0, y: 0, z: 0 },
         jugadoresEnRango: {},
+        animacionActual: 0,
 
         saludMaxima: 100,
         saludActual: 100,

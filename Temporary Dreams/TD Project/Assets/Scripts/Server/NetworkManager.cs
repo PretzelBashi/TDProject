@@ -2,11 +2,12 @@ using SocketIOClient;
 using SocketIOClient.Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using Unity.Collections.Tests.CoreCLR.TestJobs;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Attach this to a persistent object (e.g. an empty GameObject marked
-// DontDestroyOnLoad) so the connection survives scene loads.
+
+//REESCRIBIR LAS LISTAS RECIBIDAS A DICCIONARIOS
 
 public class Vector3Placeholder
 {
@@ -21,6 +22,7 @@ public class Temporario
     public float saludActual;
     public int nivel;
     public string clase;
+    public int animacionActual = 0;
     public GameObject objetoJugador;
     
     public Temporario(string nombre, int nivel, int saludMaxima, int saludActual, string clase,GameObject objetoJugador, Vector3Placeholder posicion)
@@ -84,7 +86,7 @@ public class NetworkManager : MonoBehaviour
 
     public void MandarCoordenadas(Vector3 posicion, int animacion)
     {
-        socket.Emit("mandarCoordenadas", new { x = posicion.x, y = posicion.y, z = posicion.z }, animacion);
+        socket.Emit("mandarCoordenadasJugador", new { x = posicion.x, y = posicion.y, z = posicion.z }, animacion);
     }
 
     private void RegistrarEventos(string username, string contrasena)
@@ -153,6 +155,10 @@ public class NetworkManager : MonoBehaviour
                 {
                     listaJugadoresRecibida[i].posicion = ConvertirAVector3(listaJugadoresRecibida[i].PlaceholderPosicion);
                     jugadoresEnServidor.Add(listaJugadoresRecibida[i].nombreJugador, listaJugadoresRecibida[i]);
+                    UnityThread.executeInUpdate(() =>
+                    {
+                        controladorJugadores.CrearJugadorFisico(listaJugadoresRecibida[i].nombreJugador);
+                    });
                     Debug.Log("Jugador cargado: " + jugadoresEnServidor[listaJugadoresRecibida[i].nombreJugador].nombreJugador);
                 }
                 controladorJugadores.PrenderApagar(true);
@@ -161,6 +167,60 @@ public class NetworkManager : MonoBehaviour
                     uiManager.CargarPlacas();
                 });
                 
+            }
+        });
+
+        socket.On("recibirPosicionesJugadores", response =>
+        {
+            Debug.Log("Posiciones recibidas");
+            if (response.GetValue<List<Temporario>>() != null)
+            {
+                Debug.Log(response.GetValue<List<Temporario>>().Count);
+                jugadoresEnServidor.Clear();
+
+                List<Temporario> listaJugadoresRecibida = response.GetValue<List<Temporario>>();
+
+
+                for (int i = 0; i < listaJugadoresRecibida.Count; i++)
+                {
+                    if (jugadoresEnServidor.ContainsKey(listaJugadoresRecibida[i].nombreJugador))
+                    {
+                        listaJugadoresRecibida[i].posicion = ConvertirAVector3(listaJugadoresRecibida[i].PlaceholderPosicion);
+                        jugadoresEnServidor[listaJugadoresRecibida[i].nombreJugador].posicion = listaJugadoresRecibida[i].posicion;
+                    }
+                    else
+                    {
+                        UnityThread.executeInUpdate(() =>
+                        {
+                            controladorJugadores.CrearJugadorFisico(listaJugadoresRecibida[i].nombreJugador);
+                        });
+                        jugadoresEnServidor.Add(listaJugadoresRecibida[i].nombreJugador, listaJugadoresRecibida[i]);
+                        listaJugadoresRecibida[i].posicion = ConvertirAVector3(listaJugadoresRecibida[i].PlaceholderPosicion);
+                        jugadoresEnServidor[listaJugadoresRecibida[i].nombreJugador].posicion = listaJugadoresRecibida[i].posicion;
+                    }
+                }
+
+                if(listaJugadoresRecibida.Count == jugadoresEnServidor.Count)
+                {
+                    Dictionary<string, Temporario> nuevaListaRecibidos = new Dictionary<string, Temporario>();
+                    for (int i = 0; i < listaJugadoresRecibida.Count; i++)
+                    {
+                        nuevaListaRecibidos.Add(listaJugadoresRecibida[i].nombreJugador, listaJugadoresRecibida[i]);
+                    }
+                    foreach (KeyValuePair<string, Temporario> usuario in jugadoresEnServidor)
+                    {
+                        if (!nuevaListaRecibidos.ContainsKey(usuario.Value.nombreJugador))
+                        {
+                            jugadoresEnServidor.Remove(usuario.Key);
+                        }
+                    }
+                }
+
+                UnityThread.executeInUpdate(() =>
+                {
+                    uiManager.CargarPlacas();
+                });
+
             }
         });
 
