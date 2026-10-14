@@ -8,11 +8,10 @@ public class UIManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     public GameObject placaJugadorPrefab;
     NetworkManager networkManager;
-    List<Transform> placasJugadores;
     List<Temporario> listaJugadores;
     Transform contenido;
     Transform statsJugador;
-
+    List<Transform> placasJugadores;
     TextMeshProUGUI[] statsJugadorSeleccion;
     // Update is called once per frame
     public void Mostrar(bool estado)
@@ -47,8 +46,15 @@ public class UIManager : MonoBehaviour
 
     public void CargarPlacas()
     {
+
         Debug.Log("Cargando placas");
         Debug.Log(networkManager.jugadoresEnServidor.Count);
+        for(int i = 0; i< placasJugadores.Count; i++)
+        {
+            Destroy(placasJugadores[i].gameObject);
+            placasJugadores.Clear();
+        }
+
         foreach (KeyValuePair<string, Temporario> jugador in networkManager.jugadoresEnServidor)
         {
             Debug.Log(jugador.Key);
@@ -56,8 +62,6 @@ public class UIManager : MonoBehaviour
             Debug.Log(placaCreada.name);
             placasJugadores.Add(placaCreada.transform);
             placaCreada.GetComponent<placaJugador>().IniciarPlaca(jugador.Key);
-            
-            
         }
     }
     public void CargarStatsUsuario(string nombre)
@@ -67,6 +71,7 @@ public class UIManager : MonoBehaviour
         statsJugadorSeleccion[1].text = usuario.nivel.ToString();
         statsJugadorSeleccion[2].text = usuario.saludMaxima.ToString();
         statsJugadorSeleccion[3].text = usuario.saludActual.ToString();
-        statsJugadorSeleccion[4].text = "x:" + usuario.posicion.x + " y:" + usuario.posicion.y + " z:" + usuario.posicion.z;
+        statsJugadorSeleccion[4].text = "x:" + Mathf.FloorToInt(usuario.posicion.x) + " y:" + Mathf.FloorToInt(usuario.posicion.y)
+            + " z:" + Mathf.FloorToInt(usuario.posicion.z);
     }
 }

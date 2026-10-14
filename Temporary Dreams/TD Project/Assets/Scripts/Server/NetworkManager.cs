@@ -143,24 +143,29 @@ public class NetworkManager : MonoBehaviour
 
         socket.On("recibirJugadoresConectados", response =>
         {
-            Debug.Log("Jugadores Recibidos");
-            if (response.GetValue<List<Temporario>>() != null)  
+            
+            Dictionary<string, Temporario> listaJugadoresRecibida = response.GetValue<Dictionary<string, Temporario>>();
+            Debug.Log(listaJugadoresRecibida.Count);
+
+            if (listaJugadoresRecibida != null)  
             {
-                Debug.Log(response.GetValue<List<Temporario>>().Count);
+                Debug.Log(response.GetValue<Dictionary<string, Temporario>>().Count);
                 jugadoresEnServidor.Clear();
 
-                List<Temporario> listaJugadoresRecibida = response.GetValue<List<Temporario>>();
+                
 
-                for (int i = 0; i < listaJugadoresRecibida.Count; i++)
+                foreach (KeyValuePair<string, Temporario> usuario in listaJugadoresRecibida)
                 {
-                    listaJugadoresRecibida[i].posicion = ConvertirAVector3(listaJugadoresRecibida[i].PlaceholderPosicion);
-                    jugadoresEnServidor.Add(listaJugadoresRecibida[i].nombreJugador, listaJugadoresRecibida[i]);
+                    usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
                     UnityThread.executeInUpdate(() =>
                     {
-                        controladorJugadores.CrearJugadorFisico(listaJugadoresRecibida[i].nombreJugador);
+                        controladorJugadores.CrearJugadorFisico(usuario.Value.nombreJugador);
                     });
-                    Debug.Log("Jugador cargado: " + jugadoresEnServidor[listaJugadoresRecibida[i].nombreJugador].nombreJugador);
+
+                    Debug.Log("Jugador cargado: " + usuario.Value.nombreJugador);
                 }
+
+                jugadoresEnServidor = listaJugadoresRecibida;
                 controladorJugadores.PrenderApagar(true);
                 UnityThread.executeInUpdate(() =>
                 {
@@ -169,61 +174,59 @@ public class NetworkManager : MonoBehaviour
                 
             }
         });
-
+        
         socket.On("recibirPosicionesJugadores", response =>
         {
             Debug.Log("Posiciones recibidas");
-            if (response.GetValue<List<Temporario>>() != null)
+            if (response.GetValue<Dictionary<string, Temporario>>() != null)
             {
-                Debug.Log(response.GetValue<List<Temporario>>().Count);
-                jugadoresEnServidor.Clear();
+                Dictionary<string, Temporario> listaJugadoresRecibida = response.GetValue<Dictionary<string, Temporario>>();
+                bool actualizarUI = false;
 
-                List<Temporario> listaJugadoresRecibida = response.GetValue<List<Temporario>>();
-
-
-                for (int i = 0; i < listaJugadoresRecibida.Count; i++)
+                foreach (KeyValuePair<string, Temporario> usuario in listaJugadoresRecibida)
                 {
-                    if (jugadoresEnServidor.ContainsKey(listaJugadoresRecibida[i].nombreJugador))
+                    if (jugadoresEnServidor.ContainsKey(usuario.Key))
                     {
-                        listaJugadoresRecibida[i].posicion = ConvertirAVector3(listaJugadoresRecibida[i].PlaceholderPosicion);
-                        jugadoresEnServidor[listaJugadoresRecibida[i].nombreJugador].posicion = listaJugadoresRecibida[i].posicion;
+                        usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
+                        jugadoresEnServidor[usuario.Key].posicion = usuario.Value.posicion;
                     }
                     else
                     {
                         UnityThread.executeInUpdate(() =>
                         {
-                            controladorJugadores.CrearJugadorFisico(listaJugadoresRecibida[i].nombreJugador);
+                            controladorJugadores.CrearJugadorFisico(usuario.Key);
+                            actualizarUI = true;
                         });
-                        jugadoresEnServidor.Add(listaJugadoresRecibida[i].nombreJugador, listaJugadoresRecibida[i]);
-                        listaJugadoresRecibida[i].posicion = ConvertirAVector3(listaJugadoresRecibida[i].PlaceholderPosicion);
-                        jugadoresEnServidor[listaJugadoresRecibida[i].nombreJugador].posicion = listaJugadoresRecibida[i].posicion;
+                        jugadoresEnServidor.Add(usuario.Key, usuario.Value);
+                        usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
+                        jugadoresEnServidor[usuario.Key].posicion = usuario.Value.posicion;
                     }
                 }
 
                 if(listaJugadoresRecibida.Count == jugadoresEnServidor.Count)
                 {
-                    Dictionary<string, Temporario> nuevaListaRecibidos = new Dictionary<string, Temporario>();
-                    for (int i = 0; i < listaJugadoresRecibida.Count; i++)
-                    {
-                        nuevaListaRecibidos.Add(listaJugadoresRecibida[i].nombreJugador, listaJugadoresRecibida[i]);
-                    }
                     foreach (KeyValuePair<string, Temporario> usuario in jugadoresEnServidor)
                     {
-                        if (!nuevaListaRecibidos.ContainsKey(usuario.Value.nombreJugador))
+                        if (!listaJugadoresRecibida.ContainsKey(usuario.Value.nombreJugador))
                         {
                             jugadoresEnServidor.Remove(usuario.Key);
+                            actualizarUI = true;
                         }
                     }
+                    
                 }
 
-                UnityThread.executeInUpdate(() =>
-                {
-                    uiManager.CargarPlacas();
-                });
 
+                if(actualizarUI)
+                {
+                    UnityThread.executeInUpdate(() =>
+                    {
+                        uiManager.CargarPlacas();
+                    });
+                }
             }
         });
-
+        
         socket.On("solicitarJugadoresEnRango", response =>
         {
 

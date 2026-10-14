@@ -119,7 +119,6 @@ setInterval(() => {
             for (const id in jugadoresConectados) {
 
                 let usuario = {
-                    nombreJugador: jugadoresConectados[id].stats.nombreJugador,
                     PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
                     animacionActual: jugadoresConectados[id].stats.animacionActual
                 }
@@ -200,7 +199,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
     })
 
     socket.on("solicitarJugadoresConectados", () => {
-        let listaJugadoresMandar = []
+        let listaJugadoresMandar = {}
         console.log("Jugadores enviados")
         for (const id in usuariosConectados) {
             if (servidores[jugadoresConectados[socket.id].stats.servidorActual]) {
@@ -216,7 +215,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
                         clase: jugadoresConectados[id].stats.claseJugador,
                         animacionActual: jugadoresConectados[id].animacionActual
                     }
-                    listaJugadoresMandar.push(usuario)
+                    listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
                 }
             }
         }
