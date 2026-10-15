@@ -53,6 +53,7 @@ public class NetworkManager : MonoBehaviour
 
     private void Start()
     {
+        if (GameObject.FindGameObjectsWithTag("NetworkManager").Length > 1) { Destroy(gameObject); }
         uiDebug = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>();
         
         jugadoresEnServidor = new Dictionary<string,Temporario>();
@@ -182,7 +183,8 @@ public class NetworkManager : MonoBehaviour
             {
                 Dictionary<string, Temporario> listaJugadoresRecibida = response.GetValue<Dictionary<string, Temporario>>();
                 bool actualizarUI = false;
-
+                Debug.Log(listaJugadoresRecibida.Count);
+                Debug.Log("Jugadores en servidor: " + jugadoresEnServidor.Count);
                 foreach (KeyValuePair<string, Temporario> usuario in listaJugadoresRecibida)
                 {
                     if (jugadoresEnServidor.ContainsKey(usuario.Key))
@@ -192,10 +194,10 @@ public class NetworkManager : MonoBehaviour
                     }
                     else
                     {
+                        actualizarUI = true;
                         UnityThread.executeInUpdate(() =>
                         {
                             controladorJugadores.CrearJugadorFisico(usuario.Key);
-                            actualizarUI = true;
                         });
                         jugadoresEnServidor.Add(usuario.Key, usuario.Value);
                         usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
@@ -254,12 +256,21 @@ public class NetworkManager : MonoBehaviour
     {
         controladorJugadores = GameObject.FindGameObjectWithTag("ControladorJugadores").GetComponent<ControladorJugadores>();
         uiManager = GameObject.FindGameObjectWithTag("UIJugador").GetComponent<UIManager>();
+        uiDebug.transform.SetParent(uiManager.transform, false);
+        uiDebug.transform.SetAsLastSibling();
         Debug.Log("Jugadores solicitados");
         socket.Emit("solicitarJugadoresConectados");
     }
     public void SendChat(string message)
     {
         socket.Emit("chat", message);
+    }
+
+    public void Desconectar()
+    {
+        socket?.Disconnect();
+        socket?.Dispose();
+        SceneManager.LoadScene(0);
     }
 
     void OnDestroy()

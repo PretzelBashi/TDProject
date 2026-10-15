@@ -7,10 +7,12 @@ public class UIManager : MonoBehaviour
 {
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     public GameObject placaJugadorPrefab;
-    NetworkManager networkManager;
-    List<Temporario> listaJugadores;
     Transform contenido;
     Transform statsJugador;
+
+    NetworkManager networkManager;
+
+    List<Temporario> listaJugadores;
     List<Transform> placasJugadores;
     TextMeshProUGUI[] statsJugadorSeleccion;
     // Update is called once per frame
@@ -57,7 +59,6 @@ public class UIManager : MonoBehaviour
 
         foreach (KeyValuePair<string, Temporario> jugador in networkManager.jugadoresEnServidor)
         {
-            Debug.Log(jugador.Key);
             GameObject placaCreada = Instantiate(placaJugadorPrefab, contenido);
             Debug.Log(placaCreada.name);
             placasJugadores.Add(placaCreada.transform);

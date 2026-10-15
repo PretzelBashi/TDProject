@@ -16,12 +16,10 @@ public class placaJugador : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         uiJugador = GameObject.FindGameObjectWithTag("UIJugador").GetComponent<UIManager>();
 
         textoPlaca = transform.GetChild(0).GetComponent<TextMeshProUGUI>();
-        Debug.Log("CREANDO PLACA");
         networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>();
         usuario = networkManager.jugadoresEnServidor[nombre].nombreJugador;
 
         textoPlaca.text = usuario;
-        Debug.Log(transform.GetChild(0).GetComponent<TextMeshProUGUI>().text);
     }
 
     // Update is called once per frame

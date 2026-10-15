@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class UIDebugManager : MonoBehaviour
 {
@@ -9,6 +10,7 @@ public class UIDebugManager : MonoBehaviour
     float timerUltimaActualizacion;
     void Start()
     {
+        if (GameObject.FindGameObjectsWithTag("UIDebug").Length > 1) { Destroy(gameObject); }
         ultimaActualizacionMS = transform.GetChild(0).GetChild(0).GetComponent<TextMeshProUGUI>();
         displayErrores = transform.GetChild(0).GetChild(1).GetComponent<TextMeshProUGUI>();
     }
@@ -22,7 +24,6 @@ public class UIDebugManager : MonoBehaviour
     {
         displayErrores.text = error;
     }
-
 
     // Update is called once per frame
     void Update()
