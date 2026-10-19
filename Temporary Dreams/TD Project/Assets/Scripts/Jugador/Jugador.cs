@@ -16,7 +16,7 @@ public class Jugador : MonoBehaviour
     float relojActualizacionMovimiento;
     int milisegundosActualizacionMovimiento;
 
-    UIDebugManager UIDebug;
+    UIDebugManager uiDebug;
     BoxCollider collisionSuelo;
     CharacterController characterController;
     PlayerInput controlesJugador;
@@ -30,7 +30,9 @@ public class Jugador : MonoBehaviour
         controlesJugador = transform.GetComponent<PlayerInput>();
         animator = transform.GetChild(1).GetComponent<Animator>();
         characterController = transform.GetComponent<CharacterController>();
-        try { networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>(); UIDebug = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>(); }
+        try { 
+            networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>(); 
+            uiDebug = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>(); }
         catch { Debug.Log("Corriendo Offline"); }
         
         
@@ -71,7 +73,6 @@ public class Jugador : MonoBehaviour
         Debug.DrawRay(transform.position + (Vector3.up * 0.1f), Vector3.down * 1);
         if (Physics.SphereCast(transform.position + (Vector3.up*0.1f), 0.3f, Vector3.down * 2, out suelo))
         {
-            Debug.Log("Casteado");
             if(suelo.collider.gameObject.tag != "Jugador")
             {
                 Debug.Log("Objeto: " + suelo.collider.gameObject.name);
@@ -113,7 +114,7 @@ public class Jugador : MonoBehaviour
         try {
             if (relojActualizacionMovimiento >= milisegundosActualizacionMovimiento / 1000)
             {
-                UIDebug.UltimaActualizacion(Mathf.FloorToInt(relojActualizacionMovimiento * 1000));
+                uiDebug.ActualizacionCliente(relojActualizacionMovimiento);
                 networkManager.MandarCoordenadas(transform.position, estatusAnimacionCuerpo);
                 relojActualizacionMovimiento = 0;
             }

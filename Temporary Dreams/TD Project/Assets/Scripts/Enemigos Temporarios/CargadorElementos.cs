@@ -15,8 +15,15 @@ public class CargadorElementos : MonoBehaviour
 {
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     NetworkManager networkManager;
- 
+
     // Update is called once per frame
+    private void OnDestroy()
+    {
+        CargarElementosC.UIManagerCargado = false;
+        CargarElementosC.ControladorJugadoresCargado = false;
+        CargarElementosC.JugadorCargado = false;
+        CargarElementosC.escenaCargada = false;
+    }
     void Update()
     {
 

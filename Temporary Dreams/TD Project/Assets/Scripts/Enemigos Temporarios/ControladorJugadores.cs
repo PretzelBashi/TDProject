@@ -27,7 +27,7 @@ public class ControladorJugadores : MonoBehaviour
     }
     public void CrearJugadorFisico(string usuario)
     {
-
+        Debug.Log("Jugador creado");
     }
     public void PrenderApagar(bool opcion)
     {

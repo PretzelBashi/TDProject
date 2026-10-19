@@ -5,19 +5,33 @@ using UnityEngine.SceneManagement;
 public class UIDebugManager : MonoBehaviour
 {
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    TextMeshProUGUI ultimaActualizacionMS;
+    TextMeshProUGUI actualizacionClienteMS;
+    TextMeshProUGUI actualizacionServidorMS;
     TextMeshProUGUI displayErrores;
-    float timerUltimaActualizacion;
+    float timerActualizacionCliente;
+    float timerActualizacionServidor;
     void Start()
     {
         if (GameObject.FindGameObjectsWithTag("UIDebug").Length > 1) { Destroy(gameObject); }
-        ultimaActualizacionMS = transform.GetChild(0).GetChild(0).GetComponent<TextMeshProUGUI>();
+        actualizacionClienteMS = transform.GetChild(0).GetChild(0).GetComponent<TextMeshProUGUI>();
+        actualizacionServidorMS = transform.GetChild(0).GetChild(3).GetComponent<TextMeshProUGUI>();
         displayErrores = transform.GetChild(0).GetChild(1).GetComponent<TextMeshProUGUI>();
+
+        timerActualizacionCliente = 0;
+        timerActualizacionServidor = 0;
     }
-    public void UltimaActualizacion(int ms)
+    public void ActualizacionCliente(float ms)
     {
-        ultimaActualizacionMS.text = ms.ToString();
-        ultimaActualizacionMS.color = Color.green;
+        int newMS = Mathf.FloorToInt(ms * 1000);
+        actualizacionClienteMS.text = "AC: " + newMS.ToString();
+        actualizacionClienteMS.color = Color.green;
+    }
+
+    public void ActualizacionServidor(float ms)
+    {
+        int newMS = Mathf.FloorToInt(ms * 1000);
+        actualizacionServidorMS.text = "AS: " + newMS.ToString();
+        actualizacionServidorMS.color = Color.green;
     }
 
     public void ActualizarErrores(string error)
@@ -28,13 +42,23 @@ public class UIDebugManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        timerUltimaActualizacion += Time.deltaTime;
-        if (timerUltimaActualizacion > 0.010)
+        timerActualizacionCliente += Time.deltaTime;
+        if (timerActualizacionCliente > 0.010)
         {
-            ultimaActualizacionMS.color = Color.yellow;
-        } else if(timerUltimaActualizacion < 0.030)
+            actualizacionClienteMS.color = Color.yellow;
+        } else if(timerActualizacionCliente < 0.030)
         {
-            ultimaActualizacionMS.color = Color.red;
+            actualizacionClienteMS.color = Color.red;
+        }
+
+        timerActualizacionServidor += Time.deltaTime;
+        if (timerActualizacionServidor > 0.010)
+        {
+            actualizacionServidorMS.color = Color.yellow;
+        }
+        else if (timerActualizacionServidor < 0.030)
+        {
+            actualizacionServidorMS.color = Color.red;
         }
     }
 }

@@ -4,6 +4,7 @@ const mysql = require("mysql")
 const fs = require("fs")
 const utilidades = require("./utilidades")
 const CrearStats = require("./plantillaStats")
+const { debug } = require("console")
 
 const app = express()
 
@@ -16,6 +17,9 @@ let servidores = {
 /*
 Los jugadores se reciben correctamente, hacer lo de recibir posiciones PERO PRIMERO ARREGLAR EL PUTO SALTO, plis
 faltaria hacer que los jugadores se instancie
+
+Separar la actualizacion de jugadores conectados (cuando un jugador entra y sale) para actualizar
+bien las stats, poner try catch por si el foreach se esta ejecutando y borro algo o algo asi no se
 
 const baseDeDatos_Jugadores = mysql.createConnection({
     host: 'localhost',
@@ -38,30 +42,34 @@ servidorSocket.on("connection", (socket) => {
     console.log("Jugador conectado:", socket.id)
 
     socket.on("disconnect", () => {
+        try {console.log("Jugador desconectado: " + jugadoresConectados[socket.id].stats.nombreJugador + " Id: " + socket.id)} 
+        catch{console.log("Jugador desconectado no existe " + socket.id )}
 
-        if (jugadoresConectados[socket.id]) {
-            console.log("Jugador desconectado: " + jugadoresConectados[socket.id].stats.nombreJugador + " Id: " + socket.id)
-            delete servidores[jugadoresConectados[socket.id].stats.servidorActual][socket.id]
-            delete usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]
-            delete jugadoresConectados[socket.id]
-        }
+        try {delete servidores[jugadoresConectados[socket.id].stats.servidorActual][socket.id]} 
+        catch {console.log("DELETE Jugador en servidor no encontrado " + socket.id)}
+
+        try {delete usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]} 
+        catch {console.log("DELETE Jugador en stats no encontrado "  + socket.id)}
+
+        try {delete jugadoresConectados[socket.id]} 
+        catch {console.log("DELETE Jugador en jugadores no encontrad "  + socket.id)}
     });
 
     socket.on("login", (usuario, constrasena) => {
         //Aqui va el login y ver si se acepta o se rechaza el intento de coneccion
         //Tambien se deben obtener los datos del jugador (Solo el nombre, dejar todo vacio)
         console.log("Comprobando usuario " + usuariosConectados[usuario])
-        if (usuariosConectados[usuario]) {
-
-            socket.emit("loginExitoso", false, "Usuario ya conectado, desconectando cuenta")
-
-            if (jugadoresConectados[usuariosConectados[usuario]]) {
-                delete jugadoresConectados[usuariosConectados[usuario]]
+        if (usuariosConectados[usuario] ) {
+            if(jugadoresConectados[usuariosConectados[usuario]].stats.estadoConexion != 2){
+                console.log("Desconexion rechazada")
+                console.log(jugadoresConectados[usuariosConectados[usuario]].stats.estadoConexion)
+                return
             }
-            servidorSocket.sockets.sockets.get(usuariosConectados[usuario]).disconnect
-            delete usuariosConectados[usuario]
+            socket.emit("loginExitoso", false, "Usuario ya conectado, desconectando cuenta")
+            console.log("Jugador ya conectado, desconectando: "+ usuariosConectados[usuario])
 
-            socket.disconnect
+            servidorSocket.sockets.sockets.get(usuariosConectados[usuario]).disconnect()
+            socket.disconnect()
             return
         }
 
@@ -71,8 +79,10 @@ servidorSocket.on("connection", (socket) => {
 
         usuariosConectados[usuario] = socket.id
         console.log(usuariosConectados[usuario])
+
         jugadoresConectados[socket.id].stats.nombreJugador = usuario
         jugadoresConectados[socket.id].stats.posicionActual = jugadoresConectados[socket.id].stats.ultimaPosicion
+        jugadoresConectados[socket.id].stats.estadoConexion = 1
 
         let usuarioLogin = {
             nombreJugador: jugadoresConectados[socket.id].stats.nombreJugador,
@@ -80,7 +90,7 @@ servidorSocket.on("connection", (socket) => {
             saludMaxima: jugadoresConectados[socket.id].stats.saludMaxima,
             saludActual: jugadoresConectados[socket.id].stats.saludActual,
             nivel: jugadoresConectados[socket.id].stats.nivel,
-            clase: jugadoresConectados[socket.id].stats.claseJugador,
+            clase: jugadoresConectados[socket.id].stats.claseJugador
         }
 
         console.log("DEBUG " + usuariosConectados[usuario])
@@ -114,6 +124,7 @@ setInterval(() => {
 setInterval(() => {
     for (const servidor in servidores) {
         try {
+
             let listaJugadoresMandar = {}
 
             for (const id in jugadoresConectados) {
@@ -124,6 +135,7 @@ setInterval(() => {
                 }
                 listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
             }
+
             servidorSocket.to(servidor).emit("recibirPosicionesJugadores", listaJugadoresMandar)
         } catch { }
     }
@@ -186,7 +198,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
     })
 
     socket.on("conectarJugadorAInstancia", (servidor) => {
-        if (servidores[servidor]) {
+        try{        if (servidores[servidor]) {
             console.log("Servidor aceptado")
             if (Object.keys(servidores[servidor]).length <= 30) {
                 servidores[servidor][socket.id] = usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]
@@ -195,7 +207,8 @@ function LoginExitosoAsignarEventosJugador(socket) {
                 socket.emit("conexionAInstanciaExitosa", true)
                 console.log("Cantidad de jugadores aceptada")
             }
-        } else { socket.emit("conexionAInstanciaExitosa", false) }
+        } else { socket.emit("conexionAInstanciaExitosa", false) }}
+        catch{socket.emit("conexionAInstanciaExitosa", false)}
     })
 
     socket.on("solicitarJugadoresConectados", () => {
@@ -204,7 +217,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
         for (const id in usuariosConectados) {
             if (servidores[jugadoresConectados[socket.id].stats.servidorActual]) {
                 for (const id in servidores[jugadoresConectados[socket.id].stats.servidorActual]) {
-                    console.log(id)
+                    console.log("Jugador solicitado id: "+id)
                     //if (id == socket.id) { continue }
                     let usuario = {
                         nombreJugador: jugadoresConectados[id].stats.nombreJugador,
@@ -219,13 +232,15 @@ function LoginExitosoAsignarEventosJugador(socket) {
                 }
             }
         }
-
+        jugadoresConectados[socket.id].stats.estadoConexion = 2
         socket.emit("recibirJugadoresConectados", listaJugadoresMandar)
     })
 
     socket.on("mandarCoordenadasJugador", (posicion, animacion) => {
-        jugadoresConectados[socket.id].stats.posicionActual = posicion
-        jugadoresConectados[socket.id].stats.animacionActual = animacion
+        try{
+            jugadoresConectados[socket.id].stats.posicionActual = posicion
+            jugadoresConectados[socket.id].stats.animacionActual = animacion
+        } catch {}
     })
 
     socket.on("chat", (data) => {

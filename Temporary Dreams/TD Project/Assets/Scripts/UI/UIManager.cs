@@ -51,11 +51,12 @@ public class UIManager : MonoBehaviour
 
         Debug.Log("Cargando placas");
         Debug.Log(networkManager.jugadoresEnServidor.Count);
-        for(int i = 0; i< placasJugadores.Count; i++)
+
+        for(int i = 0; i < placasJugadores.Count; i++)
         {
             Destroy(placasJugadores[i].gameObject);
-            placasJugadores.Clear();
         }
+        placasJugadores.Clear();
 
         foreach (KeyValuePair<string, Temporario> jugador in networkManager.jugadoresEnServidor)
         {

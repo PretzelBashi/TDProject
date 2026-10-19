@@ -43,6 +43,7 @@ public class NetworkManager : MonoBehaviour
     UIDebugManager uiDebug;
     UIManager uiManager;
     Temporario jugadorActual;
+    
     public Dictionary<string, Temporario> jugadoresEnServidor;
 
     ControladorJugadores controladorJugadores;
@@ -50,6 +51,9 @@ public class NetworkManager : MonoBehaviour
     [SerializeField] private string serverUrl = "http://localhost:3000";
     private SocketIOUnity socket;
     public List<Jugador> jugadores = new List<Jugador>();
+
+    int estadoDeConeccion; //0 desconectado, 1 conectando, 2 conectado
+    float relojActualizacionServidor;
 
     private void Start()
     {
@@ -59,6 +63,13 @@ public class NetworkManager : MonoBehaviour
         jugadoresEnServidor = new Dictionary<string,Temporario>();
         DontDestroyOnLoad(uiDebug);
         DontDestroyOnLoad(gameObject);
+
+    }
+
+    public void ActualizacionRecibida()
+    {
+        uiDebug.ActualizacionServidor(relojActualizacionServidor);
+        relojActualizacionServidor = 0;
     }
 
     public Vector3 ConvertirAVector3(Vector3Placeholder posicion)
@@ -79,19 +90,47 @@ public class NetworkManager : MonoBehaviour
         socket.JsonSerializer = new NewtonsoftJsonSerializer();
 
         Debug.Log("Iniciando");
-        RegistrarEventos(username, contrasena);
+        RegistrarEventosT1(username, contrasena);
 
         socket.Connect();
-        SendChat("Teto mi vieja we");
     }
 
+    public void IntentarConectar()
+    {
+        
+    }
+
+    public void SolicitarJugadoresConectados()
+    {
+        controladorJugadores = GameObject.FindGameObjectWithTag("ControladorJugadores").GetComponent<ControladorJugadores>();
+        uiManager = GameObject.FindGameObjectWithTag("UIJugador").GetComponent<UIManager>();
+        Debug.Log("Jugadores solicitados");
+        socket.Emit("solicitarJugadoresConectados");
+    }
     public void MandarCoordenadas(Vector3 posicion, int animacion)
     {
         socket.Emit("mandarCoordenadasJugador", new { x = posicion.x, y = posicion.y, z = posicion.z }, animacion);
     }
 
-    private void RegistrarEventos(string username, string contrasena)
+    private void RegistrarEventosT1(string username, string contrasena)
     {
+        socket.OnReconnectAttempt += (sender, e) =>
+        {
+            Debug.Log("OnReconnectAttempt: " + socket.Id + ", " + e);
+        };
+        socket.OnReconnectError += (sender, e) =>
+        {
+            Debug.Log("OnReconnectError: " + socket.Id + ", " + e);
+        };
+        socket.OnReconnectFailed += (sender, e) =>
+        {
+            Debug.Log("OnReconnectFailed: " + socket.Id + ", " + e);
+        };
+        socket.OnReconnected += (sender, e) =>
+        {
+            Debug.Log("OnReconnected: " + socket.Id + ", " + e);
+        };
+
         socket.OnConnected += (sender, e) =>
         {
             Debug.Log("Conectado como " + socket.Id + " con el nombre " + username);
@@ -106,14 +145,24 @@ public class NetworkManager : MonoBehaviour
         socket.OnDisconnected += (sender, e) =>
         {
             Debug.Log("Disconnected: " + e);
-            uiDebug.ActualizarErrores("DESCONECTADO");
+            
+            socket?.Dispose();
+            UnityThread.executeInUpdate(() =>
+            {
+                SceneManager.LoadScene(0);
+                uiDebug.ActualizarErrores("DESCONECTADO");
+            });
         };
 
         socket.On("loginExitoso", respuesta =>
         {
-            
+            UnityThread.executeInUpdate(() =>
+            {
+                ActualizacionRecibida();
+            });
             if (respuesta.GetValue<bool>(0))
             {
+                Debug.Log("Login exitoso");
                 socket.Emit("conectarJugadorAInstancia", "servidor1mundo1");
                 uiDebug.ActualizarErrores(respuesta.GetValue<string>(1));
                 jugadorActual = respuesta.GetValue<Temporario>(2);
@@ -121,29 +170,38 @@ public class NetworkManager : MonoBehaviour
             else
             {
                 Debug.Log(respuesta.GetValue<string>(1));
+                Debug.Log("Login fallo");
                 uiDebug.ActualizarErrores(respuesta.GetValue<string>(1));
             }
         });
 
         socket.On("conexionAInstanciaExitosa", respuesta =>
         {
+            UnityThread.executeInUpdate(() =>
+            {
+                ActualizacionRecibida();
+            });
+
             Debug.Log("Instancia recibida" + respuesta);
             if (respuesta.GetValue<bool>())
             {
-                Debug.Log("Escena");
-
                 UnityThread.executeInUpdate(() =>
                 {
                     SceneManager.LoadScene("Mundo 1");
                 });
             } else
             {
+                Debug.Log("Conexion a instancia rechazada");
                 uiDebug.ActualizarErrores("El servidor no existe");
             }
         });
 
         socket.On("recibirJugadoresConectados", response =>
         {
+            UnityThread.executeInUpdate(() =>
+            {
+                ActualizacionRecibida();
+            });
             
             Dictionary<string, Temporario> listaJugadoresRecibida = response.GetValue<Dictionary<string, Temporario>>();
             Debug.Log(listaJugadoresRecibida.Count);
@@ -172,63 +230,112 @@ public class NetworkManager : MonoBehaviour
                 {
                     uiManager.CargarPlacas();
                 });
-                
+                RegistrarEventosT2();
             }
         });
-        
+    }
+
+    public void RegistrarEventosT2()
+    {
         socket.On("recibirPosicionesJugadores", response =>
         {
+            UnityThread.executeInUpdate(() =>
+            {
+                ActualizacionRecibida();
+            });
+            bool actualizarUI = false;
             Debug.Log("Posiciones recibidas");
             if (response.GetValue<Dictionary<string, Temporario>>() != null)
             {
                 Dictionary<string, Temporario> listaJugadoresRecibida = response.GetValue<Dictionary<string, Temporario>>();
-                bool actualizarUI = false;
                 Debug.Log(listaJugadoresRecibida.Count);
                 Debug.Log("Jugadores en servidor: " + jugadoresEnServidor.Count);
-                foreach (KeyValuePair<string, Temporario> usuario in listaJugadoresRecibida)
+                if(listaJugadoresRecibida.Count != jugadoresEnServidor.Count)
                 {
-                    if (jugadoresEnServidor.ContainsKey(usuario.Key))
-                    {
-                        usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
-                        jugadoresEnServidor[usuario.Key].posicion = usuario.Value.posicion;
-                    }
-                    else
+                    if (listaJugadoresRecibida.Count > jugadoresEnServidor.Count)
                     {
                         actualizarUI = true;
-                        UnityThread.executeInUpdate(() =>
+                        foreach (KeyValuePair<string, Temporario> usuario in listaJugadoresRecibida)
                         {
-                            controladorJugadores.CrearJugadorFisico(usuario.Key);
-                        });
-                        jugadoresEnServidor.Add(usuario.Key, usuario.Value);
-                        usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
-                        jugadoresEnServidor[usuario.Key].posicion = usuario.Value.posicion;
-                    }
-                }
-
-                if(listaJugadoresRecibida.Count == jugadoresEnServidor.Count)
-                {
-                    foreach (KeyValuePair<string, Temporario> usuario in jugadoresEnServidor)
-                    {
-                        if (!listaJugadoresRecibida.ContainsKey(usuario.Value.nombreJugador))
-                        {
-                            jugadoresEnServidor.Remove(usuario.Key);
-                            actualizarUI = true;
+                            if (!jugadoresEnServidor.ContainsKey(usuario.Key))
+                            {
+                                jugadoresEnServidor[usuario.Key] = usuario.Value;
+                            }
                         }
                     }
-                    
+                    else if (listaJugadoresRecibida.Count < jugadoresEnServidor.Count)
+                    {
+                        List<string> keysRemover = new List<string>();
+                        actualizarUI = true;
+                        foreach (KeyValuePair<string, Temporario> usuario in jugadoresEnServidor)
+                        {
+                            if (!listaJugadoresRecibida.ContainsKey(usuario.Key))
+                            {
+                                keysRemover.Add(usuario.Key);
+                                Debug.Log("Jugador desconectado");
+                            }
+                        }
+
+                        for(int i = 0; i < keysRemover.Count; i++)
+                        {
+                            jugadoresEnServidor.Remove(keysRemover[i]);
+                        }
+                    }
                 }
 
 
-                if(actualizarUI)
+                foreach (KeyValuePair<string, Temporario> usuario in listaJugadoresRecibida)
+                {
+                    usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
+                    jugadoresEnServidor[usuario.Key].posicion = usuario.Value.posicion;
+                }
+
+                if (actualizarUI)
                 {
                     UnityThread.executeInUpdate(() =>
                     {
                         uiManager.CargarPlacas();
                     });
                 }
+
+                /*
+                    foreach (KeyValuePair<string, Temporario> usuario in listaJugadoresRecibida)
+                    {
+                        if (jugadoresEnServidor.ContainsKey(usuario.Key))
+                        {
+                            usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
+                            jugadoresEnServidor[usuario.Key].posicion = usuario.Value.posicion;
+                        }
+                        else
+                        {
+                            Debug.Log("Jugador nuevo detectado");
+                            actualizarUI = true;
+                            UnityThread.executeInUpdate(() =>
+                            {
+                                controladorJugadores.CrearJugadorFisico(usuario.Key);
+                            });
+                            jugadoresEnServidor.Add(usuario.Key, usuario.Value);
+                            usuario.Value.posicion = ConvertirAVector3(usuario.Value.PlaceholderPosicion);
+                            jugadoresEnServidor[usuario.Key].posicion = usuario.Value.posicion;
+                        }
+                    }
+
+                if (listaJugadoresRecibida.Count != jugadoresEnServidor.Count)
+                {
+                    foreach (KeyValuePair<string, Temporario> usuario in jugadoresEnServidor)
+                    {
+                        if (!listaJugadoresRecibida.ContainsKey(usuario.Value.nombreJugador))
+                        {
+                            Debug.Log("Jugador desconectado detectado");
+                            jugadoresEnServidor.Remove(usuario.Key);
+                            actualizarUI = true;
+                        }
+                    }
+
+                } */
             }
         });
-        
+
         socket.On("solicitarJugadoresEnRango", response =>
         {
 
@@ -251,16 +358,6 @@ public class NetworkManager : MonoBehaviour
             Debug.Log($"[{data.id}] {data.message}");
         });
     }
-
-    public void SolicitarJugadoresConectados()
-    {
-        controladorJugadores = GameObject.FindGameObjectWithTag("ControladorJugadores").GetComponent<ControladorJugadores>();
-        uiManager = GameObject.FindGameObjectWithTag("UIJugador").GetComponent<UIManager>();
-        uiDebug.transform.SetParent(uiManager.transform, false);
-        uiDebug.transform.SetAsLastSibling();
-        Debug.Log("Jugadores solicitados");
-        socket.Emit("solicitarJugadoresConectados");
-    }
     public void SendChat(string message)
     {
         socket.Emit("chat", message);
@@ -269,8 +366,6 @@ public class NetworkManager : MonoBehaviour
     public void Desconectar()
     {
         socket?.Disconnect();
-        socket?.Dispose();
-        SceneManager.LoadScene(0);
     }
 
     void OnDestroy()

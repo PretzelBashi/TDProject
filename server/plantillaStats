@@ -85,7 +85,7 @@ const PlantillaStats = () => {
         servidorActual: "N/a",
         nombreJugador: "Front",
         claseJugador: "Error",
-
+        estadoConexion: 0, //0 desconectado, 1 conectando, 2 conectado, 3 reconectando
     };
 };
 
