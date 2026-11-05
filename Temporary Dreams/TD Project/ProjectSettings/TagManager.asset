@@ -11,6 +11,7 @@ TagManager:
   - Jugador
   - UIDebug
   - ControladorJugadores
+  - ObjetoCamara
   layers:
   - Default
   - TransparentFX

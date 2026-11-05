@@ -8,6 +8,7 @@ public class UIDebugManager : MonoBehaviour
     TextMeshProUGUI actualizacionClienteMS;
     TextMeshProUGUI actualizacionServidorMS;
     TextMeshProUGUI displayErrores;
+    TextMeshProUGUI fps;
     float timerActualizacionCliente;
     float timerActualizacionServidor;
     void Start()
@@ -15,6 +16,7 @@ public class UIDebugManager : MonoBehaviour
         if (GameObject.FindGameObjectsWithTag("UIDebug").Length > 1) { Destroy(gameObject); }
         actualizacionClienteMS = transform.GetChild(0).GetChild(0).GetComponent<TextMeshProUGUI>();
         actualizacionServidorMS = transform.GetChild(0).GetChild(3).GetComponent<TextMeshProUGUI>();
+        fps = transform.GetChild(0).GetChild(4).GetComponent<TextMeshProUGUI>();
         displayErrores = transform.GetChild(0).GetChild(1).GetComponent<TextMeshProUGUI>();
 
         timerActualizacionCliente = 0;
@@ -60,5 +62,7 @@ public class UIDebugManager : MonoBehaviour
         {
             actualizacionServidorMS.color = Color.red;
         }
+
+        fps.text ="FPS: " + (int)(1.0f / Time.deltaTime);
     }
 }

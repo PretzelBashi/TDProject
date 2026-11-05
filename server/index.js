@@ -2,24 +2,26 @@ const { Server } = require("socket.io")
 const express = require("express")
 const mysql = require("mysql")
 const fs = require("fs")
+
 const utilidades = require("./utilidades")
+const IniciarServidor = require("./iniciadorServidor")
 const CrearStats = require("./plantillaStats")
-const { debug } = require("console")
 
 const app = express()
 
 let jugadoresConectados = {}
 let usuariosConectados = {}
+let servidoresConectados = {}
+let usuariosServidoresConectados = {}
 let servidores = {
-    servidor1mundo1: {}
+    servidor1: { mundo1: {}, mundo2: {}, mundo3: {} }
 }
 
 /*
 Los jugadores se reciben correctamente, hacer lo de recibir posiciones PERO PRIMERO ARREGLAR EL PUTO SALTO, plis
 faltaria hacer que los jugadores se instancie
 
-Separar la actualizacion de jugadores conectados (cuando un jugador entra y sale) para actualizar
-bien las stats, poner try catch por si el foreach se esta ejecutando y borro algo o algo asi no se
+Una vez se haga la base de datos, hacer que se guarden las posiciones y se cargue en el juego
 
 const baseDeDatos_Jugadores = mysql.createConnection({
     host: 'localhost',
@@ -30,6 +32,8 @@ const baseDeDatos_Jugadores = mysql.createConnection({
     */
 
 const servidorSocket = new Server(3000, {
+    pingInterval: 25000,
+    pingTimeout: 32000,
     cors: {
         origin: "*"
     }
@@ -42,31 +46,59 @@ servidorSocket.on("connection", (socket) => {
     console.log("Jugador conectado:", socket.id)
 
     socket.on("disconnect", () => {
-        try {console.log("Jugador desconectado: " + jugadoresConectados[socket.id].stats.nombreJugador + " Id: " + socket.id)} 
-        catch{console.log("Jugador desconectado no existe " + socket.id )}
+        try { servidorSocket.to(jugadoresConectados[socket.id].stats.servidorActual + jugadoresConectados[socket.id].stats.mundoActual).emit("jugadorDesconectado", jugadoresConectados[socket.id].stats.nombreJugador) }
+        catch { console.log("Jugador no conectado a ningun servidor " + socket.id) }
 
-        try {delete servidores[jugadoresConectados[socket.id].stats.servidorActual][socket.id]} 
-        catch {console.log("DELETE Jugador en servidor no encontrado " + socket.id)}
+        try { console.log("Jugador desconectado: " + jugadoresConectados[socket.id].stats.nombreJugador + " Id: " + socket.id) }
+        catch { console.log("Jugador desconectado no existe " + socket.id) }
 
-        try {delete usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]} 
-        catch {console.log("DELETE Jugador en stats no encontrado "  + socket.id)}
+        try { delete servidores[jugadoresConectados[socket.id].stats.servidorActual][jugadoresConectados[socket.id].stats.ultimoMundo][socket.id] }
+        catch { console.log("DELETE Jugador en servidor no encontrado " + socket.id) }
 
-        try {delete jugadoresConectados[socket.id]} 
-        catch {console.log("DELETE Jugador en jugadores no encontrad "  + socket.id)}
+        try { delete usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador] }
+        catch { console.log("DELETE Jugador en stats no encontrado " + socket.id) }
+
+        try { delete jugadoresConectados[socket.id] }
+        catch { console.log("DELETE Jugador en jugadores no encontrad " + socket.id) }
+
+        if(servidoresConectados[socket.id]){
+            delete usuariosServidoresConectados[servidoresConectados[socket.id].stats.nombreJugador]
+            delete servidoresConectados[socket.id]
+            console.log("Server manager desconectado " + socket.id)
+        }
     });
 
-    socket.on("login", (usuario, constrasena) => {
+    socket.on("login", (usuario, contrasena) => {
         //Aqui va el login y ver si se acepta o se rechaza el intento de coneccion
         //Tambien se deben obtener los datos del jugador (Solo el nombre, dejar todo vacio)
         console.log("Comprobando usuario " + usuariosConectados[usuario])
-        if (usuariosConectados[usuario] ) {
-            if(jugadoresConectados[usuariosConectados[usuario]].stats.estadoConexion != 2){
+        if(usuariosServidoresConectados[usuario]){
+            if (servidoresConectados[usuariosServidoresConectados[usuario]].stats.estadoConexion != 2) {
                 console.log("Desconexion rechazada")
-                console.log(jugadoresConectados[usuariosConectados[usuario]].stats.estadoConexion)
+                console.log(servidoresConectados[usuariosServidoresConectados[usuario]].stats.estadoConexion)
+                socket.disconnect()
                 return
             }
+
             socket.emit("loginExitoso", false, "Usuario ya conectado, desconectando cuenta")
-            console.log("Jugador ya conectado, desconectando: "+ usuariosConectados[usuario])
+            console.log("Servidor ya conectado, desconectando: " + usuariosServidoresConectados[usuario])
+
+            servidorSocket.sockets.sockets.get(usuariosServidoresConectados[usuario]).disconnect()
+            socket.disconnect()
+            return
+        }
+
+        if (usuariosConectados[usuario]) {
+
+            if (jugadoresConectados[usuariosConectados[usuario]].stats.estadoConexion != 2) {
+                console.log("Desconexion rechazada")
+                console.log(jugadoresConectados[usuariosConectados[usuario]].stats.estadoConexion)
+                socket.disconnect()
+                return
+            }
+
+            socket.emit("loginExitoso", false, "Usuario ya conectado, desconectando cuenta")
+            console.log("Jugador ya conectado, desconectando: " + usuariosConectados[usuario])
 
             servidorSocket.sockets.sockets.get(usuariosConectados[usuario]).disconnect()
             socket.disconnect()
@@ -93,9 +125,25 @@ servidorSocket.on("connection", (socket) => {
             clase: jugadoresConectados[socket.id].stats.claseJugador
         }
 
+
         console.log("DEBUG " + usuariosConectados[usuario])
         console.log("DEBUG " + jugadoresConectados[socket.id].stats.nombreJugador)
 
+
+        if (usuario == "servidor1mundo1") {
+            AsignarEventosClienteServidor(socket)
+            console.log("SERVIDOR CONECTADO")
+            servidoresConectados[socket.id] = jugadoresConectados[socket.id]
+            usuariosServidoresConectados[usuario] = usuariosConectados[usuario]
+
+            servidoresConectados[socket.id].stats.servidorActual = "servidor1"
+            servidoresConectados[socket.id].stats.mundoActual = "mundo1"
+            servidoresConectados[socket.id].stats.ultimoMundo = "mundo1"
+            delete usuariosConectados[usuario]
+            delete jugadoresConectados[socket.id]
+            socket.emit("loginAdminExitoso", true, "Login exitoso", usuarioLogin)
+            return
+        }
         socket.emit("loginExitoso", true, "Login exitoso", usuarioLogin)
         LoginExitosoAsignarEventosJugador(socket)
     })
@@ -103,6 +151,7 @@ servidorSocket.on("connection", (socket) => {
 });
 
 //Actualizar jugadores en rango
+/*
 setInterval(() => {
     for (const servidor in servidores) {
         try {
@@ -115,32 +164,56 @@ setInterval(() => {
                 }
                 listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
             }
-            servidorSocket.to(servidor).emit(".", listaJugadoresMandar)
+            servidorSocket.to(servidor).emit(listaJugadoresMandar)
         } catch { }
     }
 }, 2000)
+*/
 
 //Enviar posiciones de jugadores
 setInterval(() => {
     for (const servidor in servidores) {
-        try {
+        for (const mundo in servidores[servidor])
+            try {
 
-            let listaJugadoresMandar = {}
+                let listaJugadoresMandar = {}
 
-            for (const id in jugadoresConectados) {
+                for (const id in jugadoresConectados) {
 
-                let usuario = {
-                    PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
-                    animacionActual: jugadoresConectados[id].stats.animacionActual
+                    let usuario = {
+                        PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
+                        PlaceholderRotacion: jugadoresConectados[id].stats.rotacionActual,
+                        animacionActual: jugadoresConectados[id].stats.animacionActual
+                    }
+                    listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
                 }
-                listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
-            }
 
-            servidorSocket.to(servidor).emit("recibirPosicionesJugadores", listaJugadoresMandar)
-        } catch { }
+                servidorSocket.to(mundo).emit("recibirPosicionesJugadores", listaJugadoresMandar)
+            } catch { }
     }
 }, 70);
 
+setInterval(() => {
+    for (const servidor in servidores) {
+        for (const mundo in servidores[servidor])
+            try {
+
+                let listaJugadoresMandar = {}
+
+                for (const id in jugadoresConectados) {
+
+                    let usuario = {
+                        PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
+                        PlaceholderRotacion: jugadoresConectados[id].stats.rotacionActual,
+                        animacionActual: jugadoresConectados[id].stats.animacionActual
+                    }
+                    listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
+                }
+
+                servidorSocket.to(servidor+mundo).emit("recibirPosicionesJugadores", listaJugadoresMandar)
+            } catch { }
+    }
+}, 70);
 
 
 function ConseguirVida(id) {
@@ -154,6 +227,50 @@ function ConseguirNivel(id) {
     usuario = {
         nivel: jugadoresConectados[id].stats.nivel,
     }
+}
+
+function AsignarEventosClienteServidor(socket) {
+            socket.on("conectarJugadorAInstancia", (servidor, mundo) => { //siempre conecta al ultimo mundo
+
+        if (servidores[servidor]) {
+            console.log("Servidor aceptado")
+            if (Object.keys(servidores[servidor][servidoresConectados[socket.id].stats.ultimoMundo]).length < 31) {
+                socket.join(servidor)
+                socket.join(servidor + servidoresConectados[socket.id].stats.ultimoMundo)
+                servidoresConectados[socket.id].stats.servidorActual = servidor
+                servidoresConectados[socket.id].stats.mundoActual = servidoresConectados[socket.id].stats.ultimoMundo
+                socket.emit("conexionAInstanciaExitosa", true)
+                console.log("Cantidad de jugadores aceptada")
+
+            } else { socket.emit("conexionAInstanciaExitosa", false) }
+        }
+
+    })
+
+        socket.on("solicitarJugadoresConectados", () => {
+        if (!servidores[servidoresConectados[socket.id].stats.servidorActual][servidoresConectados[socket.id].stats.mundoActual])
+            {console.log(servidoresConectados[socket.id].stats.mundoActual); return}
+
+        let listaJugadoresMandar = {}
+        console.log("Jugadores enviados")
+        
+        for (const id in servidores[servidoresConectados[socket.id].stats.servidorActual][servidoresConectados[socket.id].stats.mundoActual]) {
+            let usuario = {
+                nombreJugador: jugadoresConectados[id].stats.nombreJugador,
+                PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
+                PlaceholderRotacion: jugadoresConectados[id].stats.rotacionActual,
+                saludMaxima: jugadoresConectados[id].stats.saludMaxima,
+                saludActual: jugadoresConectados[id].stats.saludActual,
+                nivel: jugadoresConectados[id].stats.nivel,
+                clase: jugadoresConectados[id].stats.claseJugador,
+                animacionActual: jugadoresConectados[id].animacionActual
+            }
+            listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
+        }
+
+        servidoresConectados[socket.id].stats.estadoConexion = 2
+        socket.emit("recibirJugadoresConectados", listaJugadoresMandar)
+    })
 }
 
 function LoginExitosoAsignarEventosJugador(socket) {
@@ -197,50 +314,69 @@ function LoginExitosoAsignarEventosJugador(socket) {
             utilidades.CalcularCritico(valorNumericoNecesario, statsJugador.probabilidadCriticoActual))
     })
 
-    socket.on("conectarJugadorAInstancia", (servidor) => {
-        try{        if (servidores[servidor]) {
+    socket.on("conectarJugadorAInstancia", (servidor, mundo) => { //siempre conecta al ultimo mundo
+
+        if (servidores[servidor]) {
             console.log("Servidor aceptado")
-            if (Object.keys(servidores[servidor]).length <= 30) {
-                servidores[servidor][socket.id] = usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]
+            if (Object.keys(servidores[servidor][jugadoresConectados[socket.id].stats.ultimoMundo]).length < 31) {
+                servidores[servidor][jugadoresConectados[socket.id].stats.ultimoMundo][socket.id] = usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]
                 socket.join(servidor)
+                socket.join(servidor + jugadoresConectados[socket.id].stats.ultimoMundo)
                 jugadoresConectados[socket.id].stats.servidorActual = servidor
+                jugadoresConectados[socket.id].stats.mundoActual = jugadoresConectados[socket.id].stats.ultimoMundo
                 socket.emit("conexionAInstanciaExitosa", true)
+
+                let usuario = {
+                    nombreJugador: jugadoresConectados[socket.id].stats.nombreJugador,
+                    PlaceholderPosicion: jugadoresConectados[socket.id].stats.posicionActual,
+                    PlaceholderRotacion: jugadoresConectados[socket.id].stats.rotacionActual,
+                    saludMaxima: jugadoresConectados[socket.id].stats.saludMaxima,
+                    saludActual: jugadoresConectados[socket.id].stats.saludActual,
+                    nivel: jugadoresConectados[socket.id].stats.nivel,
+                    clase: jugadoresConectados[socket.id].stats.claseJugador,
+                    animacionActual: jugadoresConectados[socket.id].animacionActual
+                }
+
+                servidorSocket.to(servidor+jugadoresConectados[socket.id].stats.mundoActual).emit("jugadorNuevoConectado", usuario)
                 console.log("Cantidad de jugadores aceptada")
-            }
-        } else { socket.emit("conexionAInstanciaExitosa", false) }}
-        catch{socket.emit("conexionAInstanciaExitosa", false)}
+
+            } else { socket.emit("conexionAInstanciaExitosa", false) }
+        }
+
     })
 
     socket.on("solicitarJugadoresConectados", () => {
+        if (!servidores[jugadoresConectados[socket.id].stats.servidorActual][jugadoresConectados[socket.id].stats.mundoActual])
+            {console.log(jugadoresConectados[socket.id].stats.mundoActual); return}
+
         let listaJugadoresMandar = {}
         console.log("Jugadores enviados")
-        for (const id in usuariosConectados) {
-            if (servidores[jugadoresConectados[socket.id].stats.servidorActual]) {
-                for (const id in servidores[jugadoresConectados[socket.id].stats.servidorActual]) {
-                    console.log("Jugador solicitado id: "+id)
-                    //if (id == socket.id) { continue }
-                    let usuario = {
-                        nombreJugador: jugadoresConectados[id].stats.nombreJugador,
-                        PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
-                        saludMaxima: jugadoresConectados[id].stats.saludMaxima,
-                        saludActual: jugadoresConectados[id].stats.saludActual,
-                        nivel: jugadoresConectados[id].stats.nivel,
-                        clase: jugadoresConectados[id].stats.claseJugador,
-                        animacionActual: jugadoresConectados[id].animacionActual
-                    }
-                    listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
-                }
+        
+        for (const id in servidores[jugadoresConectados[socket.id].stats.servidorActual][jugadoresConectados[socket.id].stats.mundoActual]) {
+            let usuario = {
+                nombreJugador: jugadoresConectados[id].stats.nombreJugador,
+                PlaceholderPosicion: jugadoresConectados[id].stats.posicionActual,
+                PlaceholderRotacion: jugadoresConectados[id].stats.rotacionActual,
+                saludMaxima: jugadoresConectados[id].stats.saludMaxima,
+                saludActual: jugadoresConectados[id].stats.saludActual,
+                nivel: jugadoresConectados[id].stats.nivel,
+                clase: jugadoresConectados[id].stats.claseJugador,
+                animacionActual: jugadoresConectados[id].animacionActual
             }
+            listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
         }
+
         jugadoresConectados[socket.id].stats.estadoConexion = 2
         socket.emit("recibirJugadoresConectados", listaJugadoresMandar)
     })
 
-    socket.on("mandarCoordenadasJugador", (posicion, animacion) => {
-        try{
+    socket.on("mandarCoordenadasJugador", (posicion, rotacion, animacion) => {
+        try {
             jugadoresConectados[socket.id].stats.posicionActual = posicion
+            jugadoresConectados[socket.id].stats.rotacionActual = rotacion
             jugadoresConectados[socket.id].stats.animacionActual = animacion
-        } catch {}
+
+        } catch { }
     })
 
     socket.on("chat", (data) => {

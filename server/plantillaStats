@@ -5,8 +5,10 @@ const PlantillaStats = () => {
         experiencia: 0,
         monedas: 100,
         monedasRenacimiento: 0,
+        rotacionActual: { x: 0, y: 0, z: 0 },
         posicionActual: { x: 0, y: 0, z: 0 },
         ultimaPosicion: { x: 0, y: 0, z: 0 },
+        ultimaRotacion: { x: 0, y: 0, z: 0 },
         jugadoresEnRango: {},
         animacionActual: 0,
 
@@ -83,6 +85,8 @@ const PlantillaStats = () => {
         jugadoresEnRango: [],
         idSocket: "EmptySocket",
         servidorActual: "N/a",
+        ultimoMundo: "mundo1",
+        mundoActual: "N/a",
         nombreJugador: "Front",
         claseJugador: "Error",
         estadoConexion: 0, //0 desconectado, 1 conectando, 2 conectado, 3 reconectando

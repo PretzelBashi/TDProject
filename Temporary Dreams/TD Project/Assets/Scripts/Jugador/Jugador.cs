@@ -12,6 +12,7 @@ public class Jugador : MonoBehaviour
     int estatusAnimacionCuerpo;
     int saltos;
     bool grounded;
+    int gravedad;
 
     float relojActualizacionMovimiento;
     int milisegundosActualizacionMovimiento;
@@ -22,13 +23,20 @@ public class Jugador : MonoBehaviour
     PlayerInput controlesJugador;
     Animator animator;
     NetworkManager networkManager;
+    CamaraJugador camaraJugador;
 
     Vector3 velocidadActual;
+    private void Awake()
+    {
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 120;
+    }
     void Start()
     {
         collisionSuelo = transform.GetComponent<BoxCollider>();
         controlesJugador = transform.GetComponent<PlayerInput>();
         animator = transform.GetChild(1).GetComponent<Animator>();
+        camaraJugador = GameObject.FindGameObjectWithTag("ObjetoCamara").GetComponent<CamaraJugador>();
         characterController = transform.GetComponent<CharacterController>();
         try { 
             networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>(); 
@@ -36,7 +44,7 @@ public class Jugador : MonoBehaviour
         catch { Debug.Log("Corriendo Offline"); }
         
         
-
+        gravedad = 25;
         velocidadActual = Vector3.zero;
         velocidadJugador = 3.5f;
         estatusAnimacionCuerpo = 0;
@@ -75,11 +83,11 @@ public class Jugador : MonoBehaviour
         {
             if(suelo.collider.gameObject.tag != "Jugador")
             {
-                Debug.Log("Objeto: " + suelo.collider.gameObject.name);
-                Debug.Log("Distancia: " + suelo.distance);
+                //Debug.Log("Objeto: " + suelo.collider.gameObject.name);
+                //Debug.Log("Distancia: " + suelo.distance);
                 if (suelo.distance <= 0.9)
                 {
-                    Debug.Log("se hizo true");
+                    //Debug.Log("se hizo true");
                     grounded = true;
                 }
                 else { grounded = false; }
@@ -89,7 +97,7 @@ public class Jugador : MonoBehaviour
 
         if (!grounded)
         {
-            velocidadActual.y -= 0.15f;
+            velocidadActual.y -= gravedad * Time.deltaTime;
             if(velocidadActual.y > 1)
             {
                 estatusAnimacionCuerpo = 5;
@@ -110,25 +118,32 @@ public class Jugador : MonoBehaviour
             animator.SetTrigger("CambioCuerpo");
         }
 
+        //Debug.Log(grounded);
+        Vector3 camaraF = camaraJugador.transform.forward; camaraF.y = 0;
+        Vector3 camaraR = camaraJugador.transform.right; camaraR.y = 0;
+        velocidadActual = ((camaraF * velocidadActual.z) + (camaraR * velocidadActual.x)) + new Vector3(0, velocidadActual.y,0);
+
+        characterController.Move(velocidadActual * Time.deltaTime);
+        transform.rotation = Quaternion.Euler(new Vector3(0, camaraJugador.rotacionCamara.y, 0));
+
         relojActualizacionMovimiento += Time.deltaTime;
-        try {
+        try
+        {
             if (relojActualizacionMovimiento >= milisegundosActualizacionMovimiento / 1000)
             {
                 uiDebug.ActualizacionCliente(relojActualizacionMovimiento);
-                networkManager.MandarCoordenadas(transform.position, estatusAnimacionCuerpo);
+                networkManager.MandarCoordenadas(transform.position, transform.rotation.eulerAngles, estatusAnimacionCuerpo);
+                Debug.Log(estatusAnimacionCuerpo);
                 relojActualizacionMovimiento = 0;
             }
-        } catch { }
-        
-
-        Debug.Log(grounded);
-        characterController.Move(velocidadActual * Time.deltaTime);
+        }
+        catch { }
     }
 
     public void Saltar(InputAction.CallbackContext callbackContext)
     {
         //Las acciones tienen 3 estados (Started, performed, canceled)
-        if (callbackContext.performed)
+        if (callbackContext.started)
         {
             if (saltos > 0)
             {

@@ -15,6 +15,8 @@ public class UIManager : MonoBehaviour
     List<Temporario> listaJugadores;
     List<Transform> placasJugadores;
     TextMeshProUGUI[] statsJugadorSeleccion;
+
+
     // Update is called once per frame
     public void Mostrar(bool estado)
     {
