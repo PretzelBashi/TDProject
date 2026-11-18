@@ -1,4 +1,5 @@
 using System;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using static CargadorElementos;
@@ -9,8 +10,10 @@ using static CargadorElementos;
 public class Jugador : MonoBehaviour
 {
     float velocidadJugador;
+    float potenciaSalto;
     int estatusAnimacionCuerpo;
     int saltos;
+    int saltosMax;
     bool grounded;
     int gravedad;
 
@@ -19,7 +22,7 @@ public class Jugador : MonoBehaviour
 
     UIDebugManager uiDebug;
     BoxCollider collisionSuelo;
-    CharacterController characterController;
+    Rigidbody rbJugador;
     PlayerInput controlesJugador;
     Animator animator;
     NetworkManager networkManager;
@@ -37,19 +40,26 @@ public class Jugador : MonoBehaviour
         controlesJugador = transform.GetComponent<PlayerInput>();
         animator = transform.GetChild(1).GetComponent<Animator>();
         camaraJugador = GameObject.FindGameObjectWithTag("ObjetoCamara").GetComponent<CamaraJugador>();
-        characterController = transform.GetComponent<CharacterController>();
-        try { 
-            networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>(); 
-            uiDebug = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>(); }
+        rbJugador = transform.GetComponent<Rigidbody>();
+        try
+        {
+            networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>();
+            uiDebug = GameObject.FindGameObjectWithTag("UIDebug").GetComponent<UIDebugManager>();
+        }
         catch { Debug.Log("Corriendo Offline"); }
-        
-        
+
+
         gravedad = 25;
         velocidadActual = Vector3.zero;
-        velocidadJugador = 3.5f;
+
         estatusAnimacionCuerpo = 0;
         grounded = false;
-        saltos = 1;
+
+        velocidadJugador = 2.5f;
+        saltosMax = 2;
+        saltos = saltosMax;
+        potenciaSalto = 7f;
+
         CargarElementosC.JugadorCargado = true;
     }
 
@@ -59,11 +69,11 @@ public class Jugador : MonoBehaviour
         velocidadActual.z = controlesJugador.actions["Move"].ReadValue<Vector2>().y * velocidadJugador;
 
         //Frente
-        if(controlesJugador.actions["Move"].ReadValue<Vector2>().y > 0)
+        if (controlesJugador.actions["Move"].ReadValue<Vector2>().y > 0)
         {
             estatusAnimacionCuerpo = 1;
-        } 
-        else if(controlesJugador.actions["Move"].ReadValue<Vector2>().y < 0)
+        }
+        else if (controlesJugador.actions["Move"].ReadValue<Vector2>().y < 0)
         {
             estatusAnimacionCuerpo = 2;
         }
@@ -77,39 +87,20 @@ public class Jugador : MonoBehaviour
             estatusAnimacionCuerpo = 4;
         }
 
-        RaycastHit suelo;
-        Debug.DrawRay(transform.position + (Vector3.up * 0.1f), Vector3.down * 1);
-        if (Physics.SphereCast(transform.position + (Vector3.up*0.1f), 0.3f, Vector3.down * 2, out suelo))
-        {
-            if(suelo.collider.gameObject.tag != "Jugador")
-            {
-                //Debug.Log("Objeto: " + suelo.collider.gameObject.name);
-                //Debug.Log("Distancia: " + suelo.distance);
-                if (suelo.distance <= 0.9)
-                {
-                    //Debug.Log("se hizo true");
-                    grounded = true;
-                }
-                else { grounded = false; }
-            }
-            
-        }
-
         if (!grounded)
         {
-            velocidadActual.y -= gravedad * Time.deltaTime;
-            if(velocidadActual.y > 1)
+            if (rbJugador.linearVelocity.y > 1)
             {
                 estatusAnimacionCuerpo = 5;
             }
             else { estatusAnimacionCuerpo = 6; }
-            
-        } else
+
+        }
+        else
         {
             //Reposo total
-            if (velocidadActual.x == 0 && velocidadActual.z == 0) { estatusAnimacionCuerpo = 0; }
-
-            saltos = 1;
+            if (rbJugador.linearVelocity.x == 0 && rbJugador.linearVelocity.z == 0) { estatusAnimacionCuerpo = 0; }
+            saltos = saltosMax;
         }
 
         if (animator.GetInteger("EstadoCuerpo") != estatusAnimacionCuerpo)
@@ -118,12 +109,13 @@ public class Jugador : MonoBehaviour
             animator.SetTrigger("CambioCuerpo");
         }
 
-        //Debug.Log(grounded);
+        Debug.Log(grounded);
         Vector3 camaraF = camaraJugador.transform.forward; camaraF.y = 0;
         Vector3 camaraR = camaraJugador.transform.right; camaraR.y = 0;
-        velocidadActual = ((camaraF * velocidadActual.z) + (camaraR * velocidadActual.x)) + new Vector3(0, velocidadActual.y,0);
-
-        characterController.Move(velocidadActual * Time.deltaTime);
+        velocidadActual = (((camaraF * velocidadActual.z).normalized + (camaraR * velocidadActual.x)).normalized) * velocidadJugador + new Vector3(0, rbJugador.linearVelocity.y, 0);
+        Debug.Log(rbJugador.linearVelocity.y);
+        rbJugador.linearVelocity = new Vector3(velocidadActual.x * velocidadJugador, rbJugador.linearVelocity.y, velocidadActual.z * velocidadJugador);
+        //rbJugador.MoveRotation(Quaternion.Euler(new Vector3(0, camaraJugador.rotacionCamara.y, 0)));
         transform.rotation = Quaternion.Euler(new Vector3(0, camaraJugador.rotacionCamara.y, 0));
 
         relojActualizacionMovimiento += Time.deltaTime;
@@ -133,11 +125,27 @@ public class Jugador : MonoBehaviour
             {
                 uiDebug.ActualizacionCliente(relojActualizacionMovimiento);
                 networkManager.MandarCoordenadas(transform.position, transform.rotation.eulerAngles, estatusAnimacionCuerpo);
-                Debug.Log(estatusAnimacionCuerpo);
                 relojActualizacionMovimiento = 0;
             }
         }
         catch { }
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        foreach (ContactPoint contacto in collision.contacts)
+        {
+            if (contacto.normal.y > 0.5f)
+            {
+                grounded = true;
+                return;
+            }
+        }
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        grounded = false;
     }
 
     public void Saltar(InputAction.CallbackContext callbackContext)
@@ -148,8 +156,8 @@ public class Jugador : MonoBehaviour
             if (saltos > 0)
             {
                 saltos--;
-                characterController.Move(Vector3.up * 0.15f);
-                velocidadActual.y = 8;
+                rbJugador.AddForce(Vector3.up * potenciaSalto, ForceMode.Impulse);
+
             }
         }
     }
