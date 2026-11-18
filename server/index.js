@@ -6,6 +6,8 @@ const fs = require("fs")
 const utilidades = require("./utilidades")
 const IniciarServidor = require("./iniciadorServidor")
 const CrearStats = require("./plantillaStats")
+const ListaObjetosArchivo = require("./objetos")()
+
 
 const app = express()
 

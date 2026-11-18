@@ -37,6 +37,15 @@ public class Temporario
         this.saludActual = saludActual;
         this.clase = clase;
     }
+
+}
+
+public class Item
+{
+    public string nombre;
+    public int id;
+    public string descripcion;
+    public string vida;
 }
 
 
@@ -53,6 +62,7 @@ public class NetworkManager : MonoBehaviour
     [SerializeField] private string serverUrl = "http://localhost:3000";
     private SocketIOUnity socket;
     public List<Jugador> jugadores = new List<Jugador>();
+    public List<Item> itemsJugador = new List<Item>();
 
     int estadoDeConeccion; //0 desconectado, 1 conectando, 2 conectado
     string usuarioSeleccionado;
@@ -259,6 +269,11 @@ public class NetworkManager : MonoBehaviour
                 });
                 RegistrarEventosT2();
             }
+        });
+
+        socket.On("abrirInventario", response =>
+        {
+
         });
     }
     public void AgregarQuitarJugadores(string accion, string usuario, Temporario temporario)

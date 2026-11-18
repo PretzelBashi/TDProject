@@ -21,6 +21,7 @@ public class Jugador : MonoBehaviour
     int milisegundosActualizacionMovimiento;
 
     UIDebugManager uiDebug;
+    UIManager uiManager;
     BoxCollider collisionSuelo;
     Rigidbody rbJugador;
     PlayerInput controlesJugador;
@@ -160,5 +161,10 @@ public class Jugador : MonoBehaviour
 
             }
         }
+    }
+
+    public void ToggleInventario()
+    {
+        uiManager.ToggleInventarioUI();
     }
 }

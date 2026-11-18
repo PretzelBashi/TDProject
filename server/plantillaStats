@@ -82,8 +82,8 @@ const PlantillaStats = () => {
         efectos: {}, // Nombre : [temporizador, potencia, extra], veneno:[5,2,0]} **Hacer ticks de dano
 
         // Información del jugador
-        jugadoresEnRango: [],
         idSocket: "EmptySocket",
+        inventario: {},
         servidorActual: "N/a",
         ultimoMundo: "mundo1",
         mundoActual: "N/a",

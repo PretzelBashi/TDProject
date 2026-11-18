@@ -1,41 +1,68 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using static CargadorElementos;
 
 public class UIManager : MonoBehaviour
 {
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     public GameObject placaJugadorPrefab;
-    Transform contenido;
+    public GameObject prefabItem;
+    public Sprite[] spritesObjetos;
+    Transform placasContenido;
+    Transform inventarioContenido;
     Transform statsJugador;
+    Transform inventario;
+    Transform statsObjeto;
+    
 
     NetworkManager networkManager;
 
     List<Temporario> listaJugadores;
     List<Transform> placasJugadores;
+    List<Transform> itemsCargados;
+
     TextMeshProUGUI[] statsJugadorSeleccion;
 
-
+    bool inventarioAbierto = false;
     // Update is called once per frame
-    public void Mostrar(bool estado)
+    public void Mostrar(bool estado, int menu)
     {
-        if (estado) { 
-            statsJugador.GetComponent<CanvasGroup>().alpha = 1.0f;
-            statsJugador.GetComponent<CanvasGroup>().blocksRaycasts = true;
+        CanvasGroup elementoCambiar = new CanvasGroup();
+        switch (menu)
+        {
+            case 0:
+                elementoCambiar = statsJugador.GetComponent<CanvasGroup>();
+                break;
+            case 1:
+                elementoCambiar = statsObjeto.GetComponent<CanvasGroup>();
+                break;
+        }
+
+        if (estado) {
+            elementoCambiar.alpha = 1.0f;
+            elementoCambiar.blocksRaycasts = true;
         } else
         {
-            statsJugador.GetComponent<CanvasGroup>().alpha = 0f;
-            statsJugador.GetComponent<CanvasGroup>().blocksRaycasts = false;
+            elementoCambiar.alpha = 0f;
+            elementoCambiar.blocksRaycasts = false;
         }
         
     }
     private void Start()
     {
-        contenido = transform.GetChild(0).GetChild(0).GetChild(0).GetChild(0);
         statsJugador = transform.GetChild(1);
+        inventario = transform.GetChild(2);
+        statsObjeto = transform.GetChild(3);
+
+        placasContenido = transform.GetChild(1).GetChild(0).GetChild(0).GetChild(0);
+        inventarioContenido = inventario.GetChild(0).GetChild(0).GetChild(0);
+
+
         statsJugadorSeleccion = new TextMeshProUGUI[statsJugador.childCount];
         placasJugadores = new List<Transform>();
+        itemsCargados = new List<Transform>();
         networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>();
 
         Debug.Log("UI Manager iniciado");
@@ -62,7 +89,7 @@ public class UIManager : MonoBehaviour
 
         foreach (KeyValuePair<string, Temporario> jugador in networkManager.jugadoresEnServidor)
         {
-            GameObject placaCreada = Instantiate(placaJugadorPrefab, contenido);
+            GameObject placaCreada = Instantiate(placaJugadorPrefab, placasContenido);
             Debug.Log(placaCreada.name);
             placasJugadores.Add(placaCreada.transform);
             placaCreada.GetComponent<placaJugador>().IniciarPlaca(jugador.Key);
@@ -77,5 +104,34 @@ public class UIManager : MonoBehaviour
         statsJugadorSeleccion[3].text = usuario.saludActual.ToString();
         statsJugadorSeleccion[4].text = "x:" + Mathf.FloorToInt(usuario.posicion.x) + " y:" + Mathf.FloorToInt(usuario.posicion.y)
             + " z:" + Mathf.FloorToInt(usuario.posicion.z);
+    }
+    public void ToggleInventarioUI()
+    {
+        if (inventarioAbierto)
+        {
+            Mostrar(false, 1);
+        } else
+        {
+            Mostrar(true, 1);
+            CargarInventario();
+        }
+    }
+
+    public void CargarInventario()
+    {
+        for(int i = 0;i < networkManager.itemsJugador.Count; i++)
+        {
+            GameObject placaObjeto = Instantiate(prefabItem, inventarioContenido);
+            placaObjeto.transform.GetComponent<Image>().sprite = spritesObjetos[networkManager.itemsJugador[i].id];
+            itemsCargados.Add(placaObjeto.transform);
+        }
+    }
+    public void CargarStatsItem(int index)
+    {
+        Item item = networkManager.itemsJugador[index];
+        statsObjeto.GetChild(0).GetComponent<TextMeshProUGUI>().text = item.nombre;
+        statsObjeto.GetChild(1).GetComponent<TextMeshProUGUI>().text = item.descripcion;
+        statsObjeto.GetChild(2).GetComponent<TextMeshProUGUI>().text = item.vida;
+        statsObjeto.GetChild(3).GetComponent<Image>().sprite = spritesObjetos[item.id];
     }
 }

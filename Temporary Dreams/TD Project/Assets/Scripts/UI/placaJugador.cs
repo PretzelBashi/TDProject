@@ -40,12 +40,12 @@ public class placaJugador : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     public void OnPointerEnter(PointerEventData eventData)
     {
         menuAbierto = true;
-        uiJugador.Mostrar(true);
+        uiJugador.Mostrar(true, 0);
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         menuAbierto = false;
-        uiJugador.Mostrar(false);
+        uiJugador.Mostrar(false, 0);
     }
 }
