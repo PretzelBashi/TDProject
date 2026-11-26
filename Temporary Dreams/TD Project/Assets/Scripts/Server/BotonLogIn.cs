@@ -10,12 +10,12 @@ public class BotonLogIn : MonoBehaviour
     {
         NetworkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>();
     }
-    public void IntentarLogIn()
+    public void IntentarLogIn(int caso)
     {
         string nombre = transform.parent.GetChild(0).GetComponent<TMP_InputField>().text;
         string contrasena = transform.parent.GetChild(1).GetComponent<TMP_InputField>().text;
         Debug.Log(nombre + " " + contrasena);
-        NetworkManager.ConectarASocket(nombre, contrasena);
+        NetworkManager.ConectarASocket(nombre, contrasena, caso);
     }
     void Update()
     {

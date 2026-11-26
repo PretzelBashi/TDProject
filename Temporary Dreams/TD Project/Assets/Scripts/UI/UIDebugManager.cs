@@ -8,6 +8,7 @@ public class UIDebugManager : MonoBehaviour
     TextMeshProUGUI actualizacionClienteMS;
     TextMeshProUGUI actualizacionServidorMS;
     TextMeshProUGUI displayErrores;
+    TextMeshProUGUI displayInfoLogin;
     TextMeshProUGUI fps;
     float timerActualizacionCliente;
     float timerActualizacionServidor;
@@ -18,7 +19,7 @@ public class UIDebugManager : MonoBehaviour
         actualizacionServidorMS = transform.GetChild(0).GetChild(3).GetComponent<TextMeshProUGUI>();
         fps = transform.GetChild(0).GetChild(4).GetComponent<TextMeshProUGUI>();
         displayErrores = transform.GetChild(0).GetChild(1).GetComponent<TextMeshProUGUI>();
-
+        displayInfoLogin = transform.GetChild(0).GetChild(5).GetComponent<TextMeshProUGUI>();
         timerActualizacionCliente = 0;
         timerActualizacionServidor = 0;
     }
@@ -39,6 +40,11 @@ public class UIDebugManager : MonoBehaviour
     public void ActualizarErrores(string error)
     {
         displayErrores.text = error;
+    }
+
+    public void ActualizarInfoLogin(string error)
+    {
+        displayInfoLogin.text = error;
     }
 
     // Update is called once per frame

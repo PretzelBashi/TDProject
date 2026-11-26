@@ -1,37 +1,37 @@
 const { Server } = require("socket.io")
 const express = require("express")
-const mysql = require("mysql")
+const mysql = require("mysql2/promise")
 const fs = require("fs")
 
 const utilidades = require("./utilidades")
 const IniciarServidor = require("./iniciadorServidor")
 const CrearStats = require("./plantillaStats")
-const ListaObjetosArchivo = require("./objetos")()
+const Objetos = require("./objetos")
+const listaObjetos = Objetos()
+const consultasMysql = require("./consultas_sql/consultasSql")
+const insertsMysql = require("./consultas_sql/insertsSql")
 
 
-const app = express()
+const solicitudesHttp = express()
 
 let jugadoresConectados = {}
 let usuariosConectados = {}
 let servidoresConectados = {}
 let usuariosServidoresConectados = {}
 let servidores = {
-    servidor1: { mundo1: {}, mundo2: {}, mundo3: {} }
+    alpha0: { mundo1: {}, mundo2: {}, mundo3: {} }
 }
 
 /*
-Los jugadores se reciben correctamente, hacer lo de recibir posiciones PERO PRIMERO ARREGLAR EL PUTO SALTO, plis
-faltaria hacer que los jugadores se instancie
 
-Una vez se haga la base de datos, hacer que se guarden las posiciones y se cargue en el juego
 
-const baseDeDatos_Jugadores = mysql.createConnection({
-    host: 'localhost',
-    database: 'usuarios_db',
-    user: 'root',
-    password: ''
-})
     */
+const baseDeDatos_Jugadores = mysql.createPool({
+    host: 'localhost',
+    database: 'temporaldreams',
+    user: 'root',
+    password: 'toor'
+})
 
 const servidorSocket = new Server(3000, {
     pingInterval: 25000,
@@ -41,11 +41,132 @@ const servidorSocket = new Server(3000, {
     }
 })
 
-console.log("Servidor Socket.IO iniciado en el puerto 3000")
+console.log("Servidor a la escucha en 3000")
+
+
+function CargarObjetosInventario(inventario, socket) {
+    console.log(listaObjetos[0])
+    for (let i = 0; i < inventario.length; i++) {
+        console.log(inventario[i].id_objeto)
+        jugadoresConectados[socket.id].stats.inventario.push(listaObjetos[inventario[i].id_objeto])
+        console.log(jugadoresConectados[socket.id].stats.inventario[i].nombre)
+    }
+    console.log(jugadoresConectados[socket.id].stats.inventario.length)
+}
+async function IniciarStatsJugador(socket, usuario, nombre) {
+    console.log(jugadoresConectados[socket.id].stats.idJugador + " " + nombre)
+    const consulta = await ConsultarBaseDeDatos("consultarPersonaje", "", jugadoresConectados[socket.id].stats.idJugador, nombre)
+    const inventario = await ConsultarBaseDeDatos("consultarInventario", "", jugadoresConectados[socket.id].stats.idJugador, nombre)
+    CargarObjetosInventario(inventario, socket)
+
+    jugadoresConectados[socket.id].stats.claseJugador = consulta.clase
+    jugadoresConectados[socket.id].stats.nivel = consulta.nivel
+    jugadoresConectados[socket.id].stats.pelo = consulta.pelo
+    jugadoresConectados[socket.id].stats.ojos = consulta.cara
+    jugadoresConectados[socket.id].stats.color1 = consulta.color1
+    jugadoresConectados[socket.id].stats.ultimaPosicion = { x: consulta.ultimaPosicionx, y: consulta.ultimaPosiciony, z: consulta.ultimaPosicionz }
+    jugadoresConectados[socket.id].stats.ultimaRotacion = { x: consulta.ultimaRotacionx, y: consulta.ultimaRotaciony, z: consulta.ultimaRotacionz }
+    jugadoresConectados[socket.id].stats.saludMaxima = 100
+    jugadoresConectados[socket.id].stats.saludActual = 100
+    jugadoresConectados[socket.id].stats.ultimoMundo = "mundo1"
+    //Aqui calculalr stats
+}
+
+async function ConsultarBaseDeDatos(consulta, usuario, id, nombre, constrasena) {
+    let resultadoConsulta
+    console.log(consulta + usuario + id + nombre + constrasena)
+    switch (consulta) {
+        case 'prueba1':
+            resultadoConsulta = await consultasMysql.ConsultaPrueba(baseDeDatos_Jugadores)
+            break
+        case 'consultarJugadorLogin':
+            resultadoConsulta = await consultasMysql.ConsultarJugadorLogin(baseDeDatos_Jugadores, usuario, constrasena)
+            break
+        case 'consultarJugadorRegistro':
+            resultadoConsulta = await consultasMysql.ConsultarJugadorRegistro(baseDeDatos_Jugadores, usuario)
+            break
+        case 'consultarPersonaje':
+            resultadoConsulta = await consultasMysql.ConsultarPersonaje(baseDeDatos_Jugadores, id, nombre)
+            break
+        case 'consultarPersonajes':
+            resultadoConsulta = await consultasMysql.ConsultarPersonajes(baseDeDatos_Jugadores, id)
+            break
+        case 'consultarInventario':
+            resultadoConsulta = await consultasMysql.ConsultarInventario(baseDeDatos_Jugadores, id, nombre)
+            break
+        case 'eliminarPersonaje':
+            resultadoConsulta = await consultasMysql.EliminarPersonaje(baseDeDatos_Jugadores, id, nombre)
+            break
+    } return resultadoConsulta
+}
+
+async function InsertarEnBaseDeDatos(consulta, usuario, id, nombre, constrasena) {
+    let resultadoConsulta
+    switch (consulta) {
+        case 'registrarUsuario':
+            await insertsMysql.RegistrarUsuario(baseDeDatos_Jugadores, usuario, constrasena)
+            break
+    } return resultadoConsulta
+}
+
+async function CrearPersonaje(id, nombre, pelo, cara, color1, boca, clase) {
+    await insertsMysql.CrearPersonaje(baseDeDatos_Jugadores, id, nombre, pelo, cara, color1, boca, clase)
+}
+
+async function LoggearJugador(socket, usuario, jugadorConsultado) {
+
+    jugadoresConectados[socket.id] = {
+        stats: CrearStats()
+    }
+
+    usuariosConectados[usuario] = socket.id
+
+    jugadoresConectados[socket.id].stats.nombreJugador = usuario
+    jugadoresConectados[socket.id].stats.idJugador = jugadorConsultado.id
+    jugadoresConectados[socket.id].stats.estadoConexion = 1
+
+    let usuarioLogin = {
+        nombreJugador: jugadoresConectados[socket.id].stats.nombreJugador,
+        PlaceholderPosicion: jugadoresConectados[socket.id].stats.posicionActual,
+        saludMaxima: jugadoresConectados[socket.id].stats.saludMaxima,
+        saludActual: jugadoresConectados[socket.id].stats.saludActual,
+        nivel: jugadoresConectados[socket.id].stats.nivel,
+    }
+
+
+    console.log("DEBUG " + usuariosConectados[usuario])
+    console.log("DEBUG " + jugadoresConectados[socket.id].stats.nombreJugador)
+
+
+    if (usuario == "servidor1mundo1") {
+        AsignarEventosClienteServidor(socket)
+        console.log("SERVIDOR CONECTADO")
+        servidoresConectados[socket.id] = jugadoresConectados[socket.id]
+        usuariosServidoresConectados[usuario] = usuariosConectados[usuario]
+
+        servidoresConectados[socket.id].stats.servidorActual = "servidor1"
+        servidoresConectados[socket.id].stats.mundoActual = "mundo1"
+        servidoresConectados[socket.id].stats.ultimoMundo = "mundo1"
+        delete usuariosConectados[usuario]
+        delete jugadoresConectados[socket.id]
+        socket.emit("loginAdminExitoso", true, "Login exitoso", usuarioLogin)
+        return
+    }
+
+
+
+    socket.emit("loginExitoso", true, "Login exitoso", usuarioLogin)
+    LoginExitosoAsignarEventosJugador(socket)
+}
+
 
 servidorSocket.on("connection", (socket) => {
     //Poner aqui desconeccion si el login es incorrecto
     console.log("Jugador conectado:", socket.id)
+
+    const ip = socket.handshake.address;
+
+    console.log("IP del jugador: " + ip);
 
     socket.on("disconnect", () => {
         try { servidorSocket.to(jugadoresConectados[socket.id].stats.servidorActual + jugadoresConectados[socket.id].stats.mundoActual).emit("jugadorDesconectado", jugadoresConectados[socket.id].stats.nombreJugador) }
@@ -63,18 +184,110 @@ servidorSocket.on("connection", (socket) => {
         try { delete jugadoresConectados[socket.id] }
         catch { console.log("DELETE Jugador en jugadores no encontrad " + socket.id) }
 
-        if(servidoresConectados[socket.id]){
+        if (servidoresConectados[socket.id]) {
             delete usuariosServidoresConectados[servidoresConectados[socket.id].stats.nombreJugador]
             delete servidoresConectados[socket.id]
             console.log("Server manager desconectado " + socket.id)
         }
     });
 
-    socket.on("login", (usuario, contrasena) => {
+    socket.on("registro", async (usuario, contrasena) => {
+        const usuarioConsultado = await ConsultarBaseDeDatos("consultarJugadorRegistro", usuario, 0, "", "")
+        const usuariosEnIp = await ConsultarBaseDeDatos("consultarJugadorRegistro", ip, 0, "", "")
+        if (!(usuarioConsultado == null)) {
+            if (usuarioConsultado.length > 0) {
+                console.log("Usuario ya existe")
+                socket.emit("registroExitoso", false, "Ese usuario ya existe")
+                socket.disconnect()
+                return
+            }
+
+        }
+
+        if (!(usuariosEnIp == null)) {
+            if (usuariosEnIp.length >= 3) {
+                console.log("Usuarios en esta IP:" + usuariosEnIp.length)
+                socket.emit("registroExitoso", false, "Ese usuario ya existe")
+                socket.disconnect()
+                return
+            }
+        }
+
+
+        if ((contrasena == "" || contrasena == null) || (usuario == "" || usuario == null) || (usuario == "servidor1mundo1")) {
+            console.log("Usuario o contrasena invalida")
+            socket.emit("registroExitoso", false, "Usuario o contraseña invalida")
+            socket.disconnect()
+            return
+        }
+
+        InsertarEnBaseDeDatos("registrarUsuario", usuario, '', '', contrasena);
+    })
+
+    socket.on("crearPersonaje", async (nombre, pelo, cara, color1, boca, clase) => {
+        console.log("Personaje a crear recibido")
+        if (nombre == "" || nombre == null) { console.log("Inserte un nombre"); return }
+
+        const personajesConsultados = await ConsultarBaseDeDatos("consultarPersonajes", "", jugadoresConectados[socket.id].stats.idJugador, "")
+        if (!(personajesConsultados == null)) {
+            if (!(personajesConsultados.length > 0) || personajesConsultados.length < 3) {
+                CrearPersonaje(jugadoresConectados[socket.id].stats.idJugador, nombre, pelo, cara, color1, boca, clase)
+                socket.emit("personajeCreado", true)
+            }
+        } else {
+            console.log("Nombre de personaje ya existe o esta al maximo de personajes")
+            socket.emit("personajeCreado", false)
+        }
+    })
+
+socket.on("eliminarPersonaje", async (nombre) => {
+    console.log("Personaje a eliminar recibido");
+
+    if (nombre == "" || nombre == null) {
+        console.log("Inserte un nombre");
+        return;
+    }
+
+    try {
+        const idJugador = jugadoresConectados[socket.id].stats.idJugador;
+
+        const personajesConsultados = await ConsultarBaseDeDatos(
+            "consultarPersonaje", "", idJugador, nombre, ""
+        );
+
+        if (personajesConsultados != null ) {
+
+            await ConsultarBaseDeDatos(
+                "eliminarPersonaje", "", idJugador, nombre, ""
+            );
+
+            socket.emit("personajeCreado", true);
+
+        } else {
+            console.log("No se encontró el personaje");
+            socket.emit("personajeCreado", false);
+        }
+
+    } catch (error) {
+        console.log("Error al eliminar personaje:", error);
+        socket.emit("personajeCreado", false);
+    }
+});
+
+    socket.on("login", async (usuario, contrasena) => {
         //Aqui va el login y ver si se acepta o se rechaza el intento de coneccion
         //Tambien se deben obtener los datos del jugador (Solo el nombre, dejar todo vacio)
         console.log("Comprobando usuario " + usuariosConectados[usuario])
-        if(usuariosServidoresConectados[usuario]){
+        const usuarioConsultado = await ConsultarBaseDeDatos("consultarJugadorLogin", usuario, 0, "", contrasena)
+
+        if (usuarioConsultado == null) {
+            socket.emit("loginExitoso", false, "Usuario o constraseña incorrecta")
+            console.log("Usuario o constraseña incorrecta")
+            socket.disconnect()
+            return
+        }
+
+        if (usuariosServidoresConectados[usuario]) {
             if (servidoresConectados[usuariosServidoresConectados[usuario]].stats.estadoConexion != 2) {
                 console.log("Desconexion rechazada")
                 console.log(servidoresConectados[usuariosServidoresConectados[usuario]].stats.estadoConexion)
@@ -107,47 +320,7 @@ servidorSocket.on("connection", (socket) => {
             return
         }
 
-        jugadoresConectados[socket.id] = {
-            stats: CrearStats()
-        }
-
-        usuariosConectados[usuario] = socket.id
-        console.log(usuariosConectados[usuario])
-
-        jugadoresConectados[socket.id].stats.nombreJugador = usuario
-        jugadoresConectados[socket.id].stats.posicionActual = jugadoresConectados[socket.id].stats.ultimaPosicion
-        jugadoresConectados[socket.id].stats.estadoConexion = 1
-
-        let usuarioLogin = {
-            nombreJugador: jugadoresConectados[socket.id].stats.nombreJugador,
-            PlaceholderPosicion: jugadoresConectados[socket.id].stats.posicionActual,
-            saludMaxima: jugadoresConectados[socket.id].stats.saludMaxima,
-            saludActual: jugadoresConectados[socket.id].stats.saludActual,
-            nivel: jugadoresConectados[socket.id].stats.nivel,
-            clase: jugadoresConectados[socket.id].stats.claseJugador
-        }
-
-
-        console.log("DEBUG " + usuariosConectados[usuario])
-        console.log("DEBUG " + jugadoresConectados[socket.id].stats.nombreJugador)
-
-
-        if (usuario == "servidor1mundo1") {
-            AsignarEventosClienteServidor(socket)
-            console.log("SERVIDOR CONECTADO")
-            servidoresConectados[socket.id] = jugadoresConectados[socket.id]
-            usuariosServidoresConectados[usuario] = usuariosConectados[usuario]
-
-            servidoresConectados[socket.id].stats.servidorActual = "servidor1"
-            servidoresConectados[socket.id].stats.mundoActual = "mundo1"
-            servidoresConectados[socket.id].stats.ultimoMundo = "mundo1"
-            delete usuariosConectados[usuario]
-            delete jugadoresConectados[socket.id]
-            socket.emit("loginAdminExitoso", true, "Login exitoso", usuarioLogin)
-            return
-        }
-        socket.emit("loginExitoso", true, "Login exitoso", usuarioLogin)
-        LoginExitosoAsignarEventosJugador(socket)
+        LoggearJugador(socket, usuario, usuarioConsultado)
     })
 
 });
@@ -212,7 +385,7 @@ setInterval(() => {
                     listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
                 }
 
-                servidorSocket.to(servidor+mundo).emit("recibirPosicionesJugadores", listaJugadoresMandar)
+                servidorSocket.to(servidor + mundo).emit("recibirPosicionesJugadores", listaJugadoresMandar)
             } catch { }
     }
 }, 70);
@@ -232,7 +405,7 @@ function ConseguirNivel(id) {
 }
 
 function AsignarEventosClienteServidor(socket) {
-            socket.on("conectarJugadorAInstancia", (servidor, mundo) => { //siempre conecta al ultimo mundo
+    socket.on("conectarJugadorAInstancia", (servidor, mundo) => { //siempre conecta al ultimo mundo
 
         if (servidores[servidor]) {
             console.log("Servidor aceptado")
@@ -249,13 +422,12 @@ function AsignarEventosClienteServidor(socket) {
 
     })
 
-        socket.on("solicitarJugadoresConectados", () => {
-        if (!servidores[servidoresConectados[socket.id].stats.servidorActual][servidoresConectados[socket.id].stats.mundoActual])
-            {console.log(servidoresConectados[socket.id].stats.mundoActual); return}
+    socket.on("solicitarJugadoresConectados", () => {
+        if (!servidores[servidoresConectados[socket.id].stats.servidorActual][servidoresConectados[socket.id].stats.mundoActual]) { console.log(servidoresConectados[socket.id].stats.mundoActual); return }
 
         let listaJugadoresMandar = {}
         console.log("Jugadores enviados")
-        
+
         for (const id in servidores[servidoresConectados[socket.id].stats.servidorActual][servidoresConectados[socket.id].stats.mundoActual]) {
             let usuario = {
                 nombreJugador: jugadoresConectados[id].stats.nombreJugador,
@@ -290,7 +462,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
 
         switch (habilidad) {
             case "basico":
-                switch (statsJugador.stats.clase) {
+                switch (statsJugador.stats.claseJugador) {
                     case "espadachin":
                         cooldown = statsJugador.velocidadDeAtaqueActual * 5
                         statsJugador.habilidades[habilidad][0] = cooldown
@@ -299,7 +471,7 @@ function LoginExitosoAsignarEventosJugador(socket) {
                 }
                 break
             case "espadaLarga1":
-                cooldown = (20) / 1 + (statsJugador.aceleracionCasteoActual / 100)
+                cooldown = (20) / (1 + (statsJugador.aceleracionCasteoActual / 100))
                 statsJugador.habilidades[habilidad][0] = cooldown
 
                 valorNumericoNecesario = statsJugador.danoFisicoActual *
@@ -316,7 +488,30 @@ function LoginExitosoAsignarEventosJugador(socket) {
             utilidades.CalcularCritico(valorNumericoNecesario, statsJugador.probabilidadCriticoActual))
     })
 
-    socket.on("conectarJugadorAInstancia", (servidor, mundo) => { //siempre conecta al ultimo mundo
+    socket.on("solicitarPersonajes", async () => {
+        console.log("perosnajes solicitados " + jugadoresConectados[socket.id].stats.idJugador)
+        const consulta = await ConsultarBaseDeDatos("consultarPersonajes", "", jugadoresConectados[socket.id].stats.idJugador, "")
+        console.log(jugadoresConectados[socket.id].stats.idJugador)
+        let personajesMandar = []
+        console.log("Persoajes encontrados: " + consulta.length)
+        for (let i = 0; i < consulta.length; i++) {
+            consulta[i]
+            const personaje = {
+                idJugador: consulta[i].id_Jugador,
+                nombreJugador: consulta[i].nombre_personaje,
+                nivel: consulta[i].nivel,
+                pelo: consulta[i].pelo,
+                ojos: consulta[i].cara,
+                color1: consulta[i].color1
+            }
+            personajesMandar.push(personaje)
+
+        }
+        console.log(personajesMandar.length)
+        socket.emit("personajesRecibidos", personajesMandar)
+    })
+
+    socket.on("conectarJugadorAInstancia", async (servidor, personaje) => { //siempre conecta al ultimo mundo
 
         if (servidores[servidor]) {
             console.log("Servidor aceptado")
@@ -324,9 +519,13 @@ function LoginExitosoAsignarEventosJugador(socket) {
                 servidores[servidor][jugadoresConectados[socket.id].stats.ultimoMundo][socket.id] = usuariosConectados[jugadoresConectados[socket.id].stats.nombreJugador]
                 socket.join(servidor)
                 socket.join(servidor + jugadoresConectados[socket.id].stats.ultimoMundo)
+                jugadoresConectados[socket.id].stats.nombrePersonaje = personaje
                 jugadoresConectados[socket.id].stats.servidorActual = servidor
+
+                await IniciarStatsJugador(socket, personaje, personaje)
+
                 jugadoresConectados[socket.id].stats.mundoActual = jugadoresConectados[socket.id].stats.ultimoMundo
-                socket.emit("conexionAInstanciaExitosa", true)
+
 
                 let usuario = {
                     nombreJugador: jugadoresConectados[socket.id].stats.nombreJugador,
@@ -336,24 +535,28 @@ function LoginExitosoAsignarEventosJugador(socket) {
                     saludActual: jugadoresConectados[socket.id].stats.saludActual,
                     nivel: jugadoresConectados[socket.id].stats.nivel,
                     clase: jugadoresConectados[socket.id].stats.claseJugador,
-                    animacionActual: jugadoresConectados[socket.id].animacionActual
+                    animacionActual: jugadoresConectados[socket.id].animacionActual,
+                    clase: jugadoresConectados[socket.id].stats.clase,
+                    boca: jugadoresConectados[socket.id].stats.boca,
+                    ojos: jugadoresConectados[socket.id].stats.ojos,
+                    pelo: jugadoresConectados[socket.id].stats.pelo,
+                    color1: jugadoresConectados[socket.id].stats.color1,
                 }
-
-                servidorSocket.to(servidor+jugadoresConectados[socket.id].stats.mundoActual).emit("jugadorNuevoConectado", usuario)
+                socket.emit("conexionAInstanciaExitosa", true, usuario)
+                servidorSocket.to(servidor + jugadoresConectados[socket.id].stats.mundoActual).emit("jugadorNuevoConectado", usuario)
                 console.log("Cantidad de jugadores aceptada")
 
-            } else { socket.emit("conexionAInstanciaExitosa", false) }
+            } else { socket.emit("conexionAInstanciaExitosa", false, null) }
         }
 
     })
 
     socket.on("solicitarJugadoresConectados", () => {
-        if (!servidores[jugadoresConectados[socket.id].stats.servidorActual][jugadoresConectados[socket.id].stats.mundoActual])
-            {console.log(jugadoresConectados[socket.id].stats.mundoActual); return}
+        if (!servidores[jugadoresConectados[socket.id].stats.servidorActual][jugadoresConectados[socket.id].stats.mundoActual]) { console.log(jugadoresConectados[socket.id].stats.mundoActual); return }
 
         let listaJugadoresMandar = {}
         console.log("Jugadores enviados")
-        
+
         for (const id in servidores[jugadoresConectados[socket.id].stats.servidorActual][jugadoresConectados[socket.id].stats.mundoActual]) {
             let usuario = {
                 nombreJugador: jugadoresConectados[id].stats.nombreJugador,
@@ -363,7 +566,12 @@ function LoginExitosoAsignarEventosJugador(socket) {
                 saludActual: jugadoresConectados[id].stats.saludActual,
                 nivel: jugadoresConectados[id].stats.nivel,
                 clase: jugadoresConectados[id].stats.claseJugador,
-                animacionActual: jugadoresConectados[id].animacionActual
+                animacionActual: jugadoresConectados[id].animacionActual,
+                clase: jugadoresConectados[id].stats.clase,
+                boca: jugadoresConectados[id].stats.boca,
+                ojos: jugadoresConectados[id].stats.ojos,
+                pelo: jugadoresConectados[id].stats.pelo,
+                color1: jugadoresConectados[id].stats.color1,
             }
             listaJugadoresMandar[jugadoresConectados[id].stats.nombreJugador] = usuario
         }
@@ -380,7 +588,9 @@ function LoginExitosoAsignarEventosJugador(socket) {
 
         } catch { }
     })
-
+    socket.on("solicitarInventario", () => {
+        socket.emit("recibirInventario", jugadoresConectados[socket.id].stats.inventario)
+    })
     socket.on("chat", (data) => {
         console.log("" + jugadoresConectados[socket.id].stats.nombreJugador + ": " + data)
     })

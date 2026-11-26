@@ -5,6 +5,10 @@ const PlantillaStats = () => {
         experiencia: 0,
         monedas: 100,
         monedasRenacimiento: 0,
+        pelo: 0,
+        ojos: 0,
+        boca: 0,
+        color1: 0,
         rotacionActual: { x: 0, y: 0, z: 0 },
         posicionActual: { x: 0, y: 0, z: 0 },
         ultimaPosicion: { x: 0, y: 0, z: 0 },
@@ -74,7 +78,6 @@ const PlantillaStats = () => {
 
         habilidades: { basico: [0, 1] }, //espadaBasico: [cooldownBase, nivel]
         //Que el temporizador siempre empiece en 0 al entrar a la partida. 
-        enfriamiento: {},
 
         extras: {}, //Esto es para stacks o efectos de armas unicos. Suelen ser permanentes o encargarse de activar efectos, incluye encantamientos
         //temporales nombre:[potencia, extra, extra], furia:[potencia, extra, extra]
@@ -83,11 +86,13 @@ const PlantillaStats = () => {
 
         // Información del jugador
         idSocket: "EmptySocket",
-        inventario: {},
+        inventario: [],
         servidorActual: "N/a",
         ultimoMundo: "mundo1",
         mundoActual: "N/a",
-        nombreJugador: "Front",
+        nombreJugador: "",
+        nombrePersonaje: "",
+        idJugador: 0,
         claseJugador: "Error",
         estadoConexion: 0, //0 desconectado, 1 conectando, 2 conectado, 3 reconectando
     };

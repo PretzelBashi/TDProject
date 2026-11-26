@@ -12,12 +12,22 @@ public class ControladorJugadores : MonoBehaviour
     Temporario temporario;
     List<string> jugadoresARenderizar;
     NetworkManager networkManager;
-    
+
+    [SerializeField]
+    public Mesh[] pelos;
+    [SerializeField]
+    public Sprite[] ojos;
+    [SerializeField]
+    public Sprite[] bocas;
+    [SerializeField]
+    public Transform modeloJugador;
+
     bool corriendo;
     void Start()
     {
         corriendo = false;
-        networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>();
+        try { networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>(); } catch { }
+        
         jugadoresARenderizar = new List<string>();
         CargarElementosC.ControladorJugadoresCargado = true;
         
@@ -43,10 +53,52 @@ public class ControladorJugadores : MonoBehaviour
             }
         }
     }
-    public GameObject CrearJugadorFisico(string usuario)
+    public GameObject CrearJugadorFisico(string usuario, Temporario usuarioAparecer)
     {
+        List<SkinnedMeshRenderer> materiales;
+        materiales = new List<SkinnedMeshRenderer>();
+
         Debug.Log("Jugador creado");
         GameObject objetoJugador = Instantiate(prefabJugador,Vector3.zero, Quaternion.identity);
+        materiales.Add(objetoJugador.transform.GetChild(0).Find("pelo").GetComponent<SkinnedMeshRenderer>());
+        materiales.Add(objetoJugador.transform.GetChild(0).Find("pecho").GetComponent<SkinnedMeshRenderer>());
+        materiales.Add(objetoJugador.transform.GetChild(0).Find("piernas").GetComponent<SkinnedMeshRenderer>());
+        materiales.Add(objetoJugador.transform.GetChild(0).Find("zapatos").GetComponent<SkinnedMeshRenderer>());
+
+        objetoJugador.transform.GetChild(0).Find("pelo").GetComponent<SkinnedMeshRenderer>().sharedMesh = pelos[usuarioAparecer.pelo];
+        objetoJugador.transform.GetChild(0).Find("ojos").GetComponent<SkinnedMeshRenderer>().material.mainTexture = ojos[usuarioAparecer.ojos].texture;
+        objetoJugador.transform.GetChild(0).Find("boca").GetComponent<SkinnedMeshRenderer>().material.mainTexture = bocas[usuarioAparecer.boca].texture;
+
+        for (int i = 0; i < materiales.Count; i++)
+        {
+            foreach (Material material in materiales[i].materials)
+            {
+
+                Debug.Log(material.name);
+                ColorUtility.TryParseHtmlString("#" + usuarioAparecer.color1, out Color currentColour);
+
+                switch (material.name)
+                {
+                    case "pelo (Instance)":
+                        material.color = currentColour;
+                        break;
+                    case "traje (Instance)":    
+                        material.color = currentColour;
+                        break;
+
+                    case "trageP2 (Instance)":
+                        Debug.Log("Entro traje P2");
+                        material.color = new Color(
+                            currentColour.r * 0.65f,
+                            currentColour.g * 0.65f,
+                            currentColour.b * 0.65f,
+                            currentColour.a
+                        );
+                        break;
+                }
+            }
+        }
+
         jugadoresARenderizar.Add(usuario);
         return objetoJugador;
     }

@@ -12,6 +12,7 @@ TagManager:
   - UIDebug
   - ControladorJugadores
   - ObjetoCamara
+  - UIManagerInicio
   layers:
   - Default
   - TransparentFX
@@ -19,7 +20,7 @@ TagManager:
   - 
   - Water
   - UI
-  - 
+  - PersonajeUI
   - 
   - 
   - 

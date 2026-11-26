@@ -1,5 +1,6 @@
 using System;
-using Unity.VisualScripting;
+using System.Collections.Generic;
+
 using UnityEngine;
 using UnityEngine.InputSystem;
 using static CargadorElementos;
@@ -28,6 +29,7 @@ public class Jugador : MonoBehaviour
     Animator animator;
     NetworkManager networkManager;
     CamaraJugador camaraJugador;
+    ControladorJugadores controladorJugadores;
 
     Vector3 velocidadActual;
     private void Awake()
@@ -37,10 +39,60 @@ public class Jugador : MonoBehaviour
     }
     void Start()
     {
+        List<SkinnedMeshRenderer> materiales;
+        materiales = new List<SkinnedMeshRenderer>();
+        controladorJugadores = GameObject.FindGameObjectWithTag("ControladorJugadores").GetComponent<ControladorJugadores>();
+        try { networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>(); } catch { }
+        
+        materiales.Add(transform.GetChild(1).Find("pelo").GetComponent<SkinnedMeshRenderer>());
+        materiales.Add(transform.GetChild(1).Find("pecho").GetComponent<SkinnedMeshRenderer>());
+        materiales.Add(transform.GetChild(1).Find("piernas").GetComponent<SkinnedMeshRenderer>());
+        materiales.Add(transform.GetChild(1).Find("zapatos").GetComponent<SkinnedMeshRenderer>());
+        try {
+            transform.GetChild(1).Find("pelo").GetComponent<SkinnedMeshRenderer>().sharedMesh = controladorJugadores.pelos[networkManager.jugadorActual.pelo];
+            transform.GetChild(1).Find("ojos").GetComponent<SkinnedMeshRenderer>().material.mainTexture = controladorJugadores.ojos[networkManager.jugadorActual.ojos].texture;
+            transform.GetChild(1).Find("boca").GetComponent<SkinnedMeshRenderer>().material.mainTexture = controladorJugadores.bocas[networkManager.jugadorActual.boca].texture;
+
+
+            for (int i = 0; i < materiales.Count; i++)
+            {
+                foreach (Material material in materiales[i].materials)
+                {
+
+                    Debug.Log(networkManager.jugadorActual.color1);
+                    ColorUtility.TryParseHtmlString("#" + networkManager.jugadorActual.color1, out Color currentColour);
+
+                    switch (material.name)
+                    {
+                        case "pelo (Instance)":
+                            material.color = currentColour;
+                            break;
+                        case "traje (Instance)":
+                            material.color = currentColour;
+                            break;
+
+                        case "trageP2 (Instance)":
+                            Debug.Log("Entro traje P2");
+                            material.color = new Color(
+                                currentColour.r * 0.65f,
+                                currentColour.g * 0.65f,
+                                currentColour.b * 0.65f,
+                                currentColour.a
+                            );
+                            break;
+                    }
+                }
+            }
+        } catch { }
+        
+
+
+
         collisionSuelo = transform.GetComponent<BoxCollider>();
         controlesJugador = transform.GetComponent<PlayerInput>();
         animator = transform.GetChild(1).GetComponent<Animator>();
         camaraJugador = GameObject.FindGameObjectWithTag("ObjetoCamara").GetComponent<CamaraJugador>();
+        uiManager = GameObject.FindGameObjectWithTag("UIJugador").GetComponent<UIManager>();
         rbJugador = transform.GetComponent<Rigidbody>();
         try
         {
@@ -110,11 +162,11 @@ public class Jugador : MonoBehaviour
             animator.SetTrigger("CambioCuerpo");
         }
 
-        Debug.Log(grounded);
+        //Debug.Log(grounded);
         Vector3 camaraF = camaraJugador.transform.forward; camaraF.y = 0;
         Vector3 camaraR = camaraJugador.transform.right; camaraR.y = 0;
         velocidadActual = (((camaraF * velocidadActual.z).normalized + (camaraR * velocidadActual.x)).normalized) * velocidadJugador + new Vector3(0, rbJugador.linearVelocity.y, 0);
-        Debug.Log(rbJugador.linearVelocity.y);
+        //Debug.Log(rbJugador.linearVelocity.y);
         rbJugador.linearVelocity = new Vector3(velocidadActual.x * velocidadJugador, rbJugador.linearVelocity.y, velocidadActual.z * velocidadJugador);
         //rbJugador.MoveRotation(Quaternion.Euler(new Vector3(0, camaraJugador.rotacionCamara.y, 0)));
         transform.rotation = Quaternion.Euler(new Vector3(0, camaraJugador.rotacionCamara.y, 0));
@@ -163,8 +215,11 @@ public class Jugador : MonoBehaviour
         }
     }
 
-    public void ToggleInventario()
+    public void ToggleInventario(InputAction.CallbackContext callbackContext)
     {
-        uiManager.ToggleInventarioUI();
+        if (callbackContext.started)
+        {
+            uiManager.ToggleInventarioUI();
+        }
     }
 }

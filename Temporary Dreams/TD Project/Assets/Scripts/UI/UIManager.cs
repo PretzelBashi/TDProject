@@ -9,7 +9,10 @@ public class UIManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     public GameObject placaJugadorPrefab;
     public GameObject prefabItem;
+
     public Sprite[] spritesObjetos;
+    public Sprite[] spritesMarcos;
+
     Transform placasContenido;
     Transform inventarioContenido;
     Transform statsJugador;
@@ -38,15 +41,20 @@ public class UIManager : MonoBehaviour
             case 1:
                 elementoCambiar = statsObjeto.GetComponent<CanvasGroup>();
                 break;
+            case 2:
+                elementoCambiar = inventario.GetComponent<CanvasGroup>();
+                break;
         }
 
         if (estado) {
             elementoCambiar.alpha = 1.0f;
             elementoCambiar.blocksRaycasts = true;
+            elementoCambiar.interactable = true;
         } else
         {
             elementoCambiar.alpha = 0f;
             elementoCambiar.blocksRaycasts = false;
+            elementoCambiar.interactable = false;
         }
         
     }
@@ -56,8 +64,8 @@ public class UIManager : MonoBehaviour
         inventario = transform.GetChild(2);
         statsObjeto = transform.GetChild(3);
 
-        placasContenido = transform.GetChild(1).GetChild(0).GetChild(0).GetChild(0);
-        inventarioContenido = inventario.GetChild(0).GetChild(0).GetChild(0);
+        placasContenido = transform.GetChild(0).GetChild(0).GetChild(0).GetChild(0);
+        inventarioContenido = inventario.GetChild(2).GetChild(0).GetChild(0);
 
 
         statsJugadorSeleccion = new TextMeshProUGUI[statsJugador.childCount];
@@ -65,7 +73,7 @@ public class UIManager : MonoBehaviour
         itemsCargados = new List<Transform>();
         networkManager = GameObject.FindGameObjectWithTag("NetworkManager").GetComponent<NetworkManager>();
 
-        Debug.Log("UI Manager iniciado");
+
         for (int i = 0; i < statsJugador.childCount; i++)
         {
             statsJugadorSeleccion[i] = statsJugador.GetChild(i).GetComponent<TextMeshProUGUI>();
@@ -77,10 +85,6 @@ public class UIManager : MonoBehaviour
 
     public void CargarPlacas()
     {
-
-        Debug.Log("Cargando placas");
-        Debug.Log(networkManager.jugadoresEnServidor.Count);
-
         for(int i = 0; i < placasJugadores.Count; i++)
         {
             Destroy(placasJugadores[i].gameObject);
@@ -109,29 +113,44 @@ public class UIManager : MonoBehaviour
     {
         if (inventarioAbierto)
         {
-            Mostrar(false, 1);
+            Mostrar(false, 2);
+            for (int i = 0; i < itemsCargados.Count; i++)
+            {
+                Destroy(itemsCargados[i].gameObject);
+            }
+            itemsCargados.Clear();
+            inventarioAbierto = false;
+
         } else
         {
-            Mostrar(true, 1);
-            CargarInventario();
+            Mostrar(true, 2);
+            networkManager.SolicitarInventario();
+            inventarioAbierto = true;
         }
     }
 
     public void CargarInventario()
     {
+        Debug.Log("Inventario cargado");
+        Debug.Log(networkManager.itemsJugador.Count);
         for(int i = 0;i < networkManager.itemsJugador.Count; i++)
         {
             GameObject placaObjeto = Instantiate(prefabItem, inventarioContenido);
+            Debug.Log(networkManager.itemsJugador[i].rareza);
             placaObjeto.transform.GetComponent<Image>().sprite = spritesObjetos[networkManager.itemsJugador[i].id];
+            placaObjeto.transform.GetChild(1).GetComponent<Image>().sprite = spritesMarcos[networkManager.itemsJugador[i].rareza];
+            placaObjeto.transform.GetComponent<scriptInvObjeto>().index = i;
             itemsCargados.Add(placaObjeto.transform);
         }
     }
     public void CargarStatsItem(int index)
     {
         Item item = networkManager.itemsJugador[index];
-        statsObjeto.GetChild(0).GetComponent<TextMeshProUGUI>().text = item.nombre;
-        statsObjeto.GetChild(1).GetComponent<TextMeshProUGUI>().text = item.descripcion;
-        statsObjeto.GetChild(2).GetComponent<TextMeshProUGUI>().text = item.vida;
-        statsObjeto.GetChild(3).GetComponent<Image>().sprite = spritesObjetos[item.id];
+        statsObjeto.GetChild(0).GetComponent<Image>().sprite = spritesObjetos[item.id];
+        statsObjeto.GetChild(1).GetComponent<Image>().sprite = spritesMarcos[item.rareza];
+        statsObjeto.GetChild(2).GetComponent<TextMeshProUGUI>().text = item.nombre;
+        statsObjeto.GetChild(3).GetComponent<TextMeshProUGUI>().text = item.descripcion;
+        statsObjeto.GetChild(4).GetComponent<TextMeshProUGUI>().text = item.vida;
+
     }
 }
